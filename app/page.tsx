@@ -1,6 +1,28 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import {
+  MagnifyingGlass,
+  CaretDown,
+  CaretRight,
+  CaretLeft,
+  ArrowLeft,
+  X,
+  Microphone,
+  SquaresFour,
+  Buildings,
+  Note,
+  Play,
+  CheckSquare,
+  CurrencyDollar,
+  ChartBar,
+  Tag,
+  MapPin,
+  TrendDown,
+  CalendarBlank,
+  Package,
+  RocketLaunch,
+} from "@phosphor-icons/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,66 +51,25 @@ const ACCOUNTS = [
 ];
 
 const CADENCE_STEPS = [
-  {
-    day: 1,
-    title: "Rep notification",
-    description: "Reps notified via in-app message and broadcaster",
-  },
-  {
-    day: 7,
-    title: "Manager check-in",
-    description: "Digest of unvisited accounts sent to manager",
-  },
-  {
-    day: 14,
-    title: "Escalation",
-    description: "Unvisited accounts flagged for manager review",
-  },
-  {
-    day: 30,
-    title: "Performance report",
-    description: "Auto-generated play summary with revenue vs. baseline",
-  },
+  { day: 1, title: "Rep notification", description: "Reps notified via in-app message and broadcaster" },
+  { day: 7, title: "Manager check-in", description: "Digest of unvisited accounts sent to manager" },
+  { day: 14, title: "Escalation", description: "Unvisited accounts flagged for manager review" },
+  { day: 30, title: "Performance report", description: "Auto-generated play summary with revenue vs. baseline" },
 ];
 
 const MESSAGES = {
-  Direct:
-    "18 accounts flagged for immediate attention. These are down in revenue and overdue for a visit. Check your map and prioritize these stops this week.",
-  Motivational:
-    "Big opportunity this month — 18 accounts are ready for re-engagement. Your visits this week could directly protect and grow this revenue. Let's go get it.",
-  Informational:
-    "A new retention play has been launched. 18 accounts in your territory have been identified as at-risk based on revenue trend and visit recency. Please review and schedule visits accordingly.",
+  Direct: "18 accounts flagged for immediate attention. These are down in revenue and overdue for a visit. Check your map and prioritize these stops this week.",
+  Motivational: "Big opportunity this month — 18 accounts are ready for re-engagement. Your visits this week could directly protect and grow this revenue. Let's go get it.",
+  Informational: "A new retention play has been launched. 18 accounts in your territory have been identified as at-risk based on revenue trend and visit recency. Please review and schedule visits accordingly.",
 };
 
 const SUGGESTIONS = [
-  {
-    label: "Accounts down in revenue",
-    sub: "Re-engage declining customers",
-    bg: "bg-red-50",
-    icon: "📉",
-  },
-  {
-    label: "Rarely visited prospects",
-    sub: "Target neglected opportunities",
-    bg: "bg-orange-50",
-    icon: "🗓",
-  },
-  {
-    label: "Push a product line",
-    sub: "Promote specific products",
-    bg: "bg-green-50",
-    icon: "📦",
-  },
+  { label: "Accounts down in revenue", sub: "Re-engage declining customers", bg: "bg-red-50", Icon: TrendDown, color: "text-red-500" },
+  { label: "Rarely visited prospects", sub: "Target neglected opportunities", bg: "bg-orange-50", Icon: CalendarBlank, color: "text-orange-500" },
+  { label: "Push a product line", sub: "Promote specific products", bg: "bg-green-50", Icon: Package, color: "text-green-600" },
 ];
 
-const STAGE_ORDER: Stage[] = [
-  "goal",
-  "accounts",
-  "cadence",
-  "message",
-  "label",
-  "launch",
-];
+const STAGE_ORDER: Stage[] = ["goal", "accounts", "cadence", "message", "label", "launch"];
 
 const STAGE_TO_API: Record<Stage, string> = {
   goal: "goal",
@@ -100,37 +81,36 @@ const STAGE_TO_API: Record<Stage, string> = {
 };
 
 const FALLBACKS: Record<string, { message: string; nextComponent: ComponentType }> = {
-  goal: {
-    message: "Got it — here are the accounts that match your criteria.",
-    nextComponent: "accountMatching",
-  },
-  accounts: {
-    message: "Here's the nudge cadence I'd suggest for this play.",
-    nextComponent: "nudgeCadence",
-  },
-  cadence: {
-    message: "I've drafted an opening message for your reps.",
-    nextComponent: "messageComposer",
-  },
-  message: {
-    message: "Almost there — set a label for this play.",
-    nextComponent: "labelConfigurator",
-  },
-  label: {
-    message: "Everything looks good. Here's your play summary.",
-    nextComponent: "launchSummary",
-  },
+  goal: { message: "Got it — here are the accounts that match your criteria.", nextComponent: "accountMatching" },
+  accounts: { message: "Here's the nudge cadence I'd suggest for this play.", nextComponent: "nudgeCadence" },
+  cadence: { message: "I've drafted an opening message for your reps.", nextComponent: "messageComposer" },
+  message: { message: "Almost there — set a label for this play.", nextComponent: "labelConfigurator" },
+  label: { message: "Everything looks good. Here's your play summary.", nextComponent: "launchSummary" },
 };
+
+// ─── Toggle ───────────────────────────────────────────────────────────────────
+
+function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      role="switch"
+      aria-checked={enabled}
+      className={`shrink-0 w-9 h-5 rounded-full relative transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        enabled ? "bg-blue-600" : "bg-gray-200"
+      }`}
+    >
+      <span
+        className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200"
+        style={{ left: enabled ? "18px" : "2px" }}
+      />
+    </button>
+  );
+}
 
 // ─── Embedded Components ──────────────────────────────────────────────────────
 
-function AccountMatching({
-  accounts,
-  onRemove,
-}: {
-  accounts: typeof ACCOUNTS;
-  onRemove: (i: number) => void;
-}) {
+function AccountMatching({ accounts, onRemove }: { accounts: typeof ACCOUNTS; onRemove: (i: number) => void }) {
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mt-3 w-full max-w-2xl">
       <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200">
@@ -154,42 +134,25 @@ function AccountMatching({
             </div>
             <div className="flex items-center gap-3 ml-4 shrink-0">
               <span className="text-xs text-gray-500">{a.days}d since visit</span>
-              <span
-                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  a.trend < 0
-                    ? "bg-red-100 text-red-800"
-                    : "bg-green-100 text-green-800"
-                }`}
-              >
-                {a.trend > 0 ? "+" : ""}
-                {a.trend}%
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${a.trend < 0 ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                {a.trend > 0 ? "+" : ""}{a.trend}%
               </span>
-              <button
-                onClick={() => onRemove(i)}
-                className="text-gray-300 hover:text-red-500 text-sm leading-none ml-1 transition-colors"
-                title="Remove"
-              >
-                ✕
+              <button onClick={() => onRemove(i)} className="text-gray-300 hover:text-red-500 transition-colors ml-1" title="Remove">
+                <X size={14} weight="bold" />
               </button>
             </div>
           </div>
         ))}
       </div>
       <div className="px-4 py-2.5 border-t border-gray-100">
-        <button className="text-blue-600 text-xs hover:underline">
-          Adjust criteria
-        </button>
+        <button className="text-blue-600 text-xs hover:underline">Adjust criteria</button>
       </div>
     </div>
   );
 }
 
 function NudgeCadence({
-  steps,
-  days,
-  enabled,
-  onDayChange,
-  onToggle,
+  steps, days, enabled, onDayChange, onToggle,
 }: {
   steps: typeof CADENCE_STEPS;
   days: number[];
@@ -201,16 +164,9 @@ function NudgeCadence({
     <div className="border border-gray-200 rounded-lg bg-white mt-3 w-full max-w-2xl overflow-hidden">
       <div className="divide-y divide-gray-100">
         {steps.map((s, i) => (
-          <div
-            key={s.title}
-            className={`flex items-start gap-4 px-4 py-3 transition-opacity ${!enabled[i] ? "opacity-40" : ""}`}
-          >
+          <div key={s.title} className={`flex items-start gap-4 px-4 py-3 transition-opacity ${!enabled[i] ? "opacity-40" : ""}`}>
             <div className="flex flex-col items-center pt-1 shrink-0">
-              <div
-                className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${
-                  enabled[i] ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"
-                }`}
-              />
+              <div className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${enabled[i] ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"}`} />
               {i < steps.length - 1 && <div className="w-px h-8 bg-gray-200 mt-1" />}
             </div>
             <div className="flex-1 min-w-0">
@@ -227,18 +183,7 @@ function NudgeCadence({
               <div className="font-medium text-sm text-gray-900 mt-1">{s.title}</div>
               <div className="text-xs text-gray-500 mt-0.5">{s.description}</div>
             </div>
-            <button
-              onClick={() => onToggle(i)}
-              className={`mt-1 shrink-0 w-9 h-5 rounded-full relative transition-colors ${
-                enabled[i] ? "bg-blue-600" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  enabled[i] ? "translate-x-4" : "translate-x-0.5"
-                }`}
-              />
-            </button>
+            <Toggle enabled={enabled[i]} onToggle={() => onToggle(i)} />
           </div>
         ))}
       </div>
@@ -246,12 +191,7 @@ function NudgeCadence({
   );
 }
 
-function MessageComposer({
-  tone,
-  text,
-  onTone,
-  onText,
-}: {
+function MessageComposer({ tone, text, onTone, onText }: {
   tone: keyof typeof MESSAGES;
   text: string;
   onTone: (t: keyof typeof MESSAGES) => void;
@@ -266,9 +206,7 @@ function MessageComposer({
               key={t}
               onClick={() => onTone(t)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                tone === t
-                  ? "border-blue-600 bg-blue-50 text-blue-700 font-medium"
-                  : "border-gray-200 text-gray-600 hover:border-gray-300"
+                tone === t ? "border-blue-600 bg-blue-50 text-blue-700 font-medium" : "border-gray-200 text-gray-600 hover:border-gray-300"
               }`}
             >
               {t}
@@ -299,13 +237,7 @@ function MessageComposer({
   );
 }
 
-function LabelConfigurator({
-  label,
-  onChange,
-}: {
-  label: string;
-  onChange: (v: string) => void;
-}) {
+function LabelConfigurator({ label, onChange }: { label: string; onChange: (v: string) => void }) {
   return (
     <div className="border border-gray-200 rounded-lg bg-white mt-3 w-full max-w-2xl p-4">
       <label className="text-xs text-gray-500 block mb-1.5">Play label</label>
@@ -330,15 +262,7 @@ function LabelConfigurator({
 }
 
 function LaunchSummary({
-  playName,
-  label,
-  accountCount,
-  repCount,
-  cadenceSteps,
-  repMessage,
-  onNameChange,
-  onLaunch,
-  launched,
+  playName, label, accountCount, repCount, cadenceSteps, repMessage, onNameChange, onLaunch, launched,
 }: {
   playName: string;
   label: string;
@@ -353,13 +277,11 @@ function LaunchSummary({
   if (launched) {
     return (
       <div className="border border-green-200 rounded-lg bg-green-50 mt-3 w-full max-w-2xl p-6 text-center">
-        <div className="text-2xl mb-2">🚀</div>
-        <h3 className="font-semibold text-green-800 text-base">
-          Play launched. 4 reps have been notified.
-        </h3>
-        <button className="mt-3 text-blue-600 text-sm hover:underline">
-          View live play dashboard →
-        </button>
+        <div className="flex justify-center mb-3">
+          <RocketLaunch size={32} weight="fill" className="text-green-600" />
+        </div>
+        <h3 className="font-semibold text-green-800 text-base">Play launched. 4 reps have been notified.</h3>
+        <button className="mt-3 text-blue-600 text-sm hover:underline">View live play dashboard →</button>
       </div>
     );
   }
@@ -378,9 +300,7 @@ function LaunchSummary({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">Label:</span>
-          <span className="inline-block bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium px-2.5 py-0.5 rounded-full">
-            {label}
-          </span>
+          <span className="inline-block bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium px-2.5 py-0.5 rounded-full">{label}</span>
         </div>
         <div className="flex gap-6">
           <div>
@@ -395,27 +315,20 @@ function LaunchSummary({
         <div>
           <div className="text-xs text-gray-500 mb-1.5">Cadence</div>
           <div className="flex flex-wrap gap-1.5">
-            {cadenceSteps
-              .filter((s) => s.enabled)
-              .map((s) => (
-                <span key={s.title} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                  Day {s.day} · {s.title}
-                </span>
-              ))}
+            {cadenceSteps.filter((s) => s.enabled).map((s) => (
+              <span key={s.title} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                Day {s.day} · {s.title}
+              </span>
+            ))}
           </div>
         </div>
         <div>
           <div className="text-xs text-gray-500 mb-1">Rep message</div>
-          <p className="text-xs text-gray-700 italic">
-            &ldquo;{repMessage.split(".")[0]}.&rdquo;
-          </p>
+          <p className="text-xs text-gray-700 italic">&ldquo;{repMessage.split(".")[0]}.&rdquo;</p>
         </div>
       </div>
       <div className="px-4 pb-4">
-        <button
-          onClick={onLaunch}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2.5 rounded-lg transition-colors"
-        >
+        <button onClick={onLaunch} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2.5 rounded-lg transition-colors">
           Launch play
         </button>
       </div>
@@ -426,15 +339,15 @@ function LaunchSummary({
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { label: "Dashboard", icon: "⊞" },
-  { label: "Companies", icon: "🏢" },
-  { label: "Notes", icon: "📝" },
-  { label: "Plays", icon: "▶", active: true },
-  { label: "Tasks", icon: "☑" },
-  { label: "Opportunities", icon: "💰" },
-  { label: "Reports", icon: "📊" },
-  { label: "Promotions", icon: "🏷" },
-  { label: "Maps", icon: "📍" },
+  { label: "Dashboard", Icon: SquaresFour },
+  { label: "Companies", Icon: Buildings },
+  { label: "Notes", Icon: Note },
+  { label: "Plays", Icon: Play, active: true },
+  { label: "Tasks", Icon: CheckSquare },
+  { label: "Opportunities", Icon: CurrencyDollar },
+  { label: "Reports", Icon: ChartBar },
+  { label: "Promotions", Icon: Tag },
+  { label: "Maps", Icon: MapPin },
 ];
 
 function Sidebar() {
@@ -451,26 +364,23 @@ function Sidebar() {
         </div>
       </div>
       <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.map(({ label, Icon, active }) => (
           <div
-            key={item.label}
+            key={label}
             className={`flex items-center gap-2.5 px-3 py-2.5 rounded cursor-pointer text-xs transition-colors ${
-              item.active
-                ? "bg-[#334155] text-white font-medium"
-                : "text-slate-400 hover:text-white hover:bg-[#1E293B]"
+              active ? "bg-[#334155] text-white font-medium" : "text-slate-400 hover:text-white hover:bg-[#1E293B]"
             }`}
           >
-            <span className="w-4 text-center text-sm">{item.icon}</span>
-            <span>{item.label}</span>
-            {item.active && (
-              <span className="ml-auto w-1 h-4 bg-blue-500 rounded-full" />
-            )}
+            <Icon size={15} weight={active ? "fill" : "regular"} className="shrink-0" />
+            <span>{label}</span>
+            {active && <span className="ml-auto w-1 h-4 bg-blue-500 rounded-full" />}
           </div>
         ))}
       </nav>
       <div className="p-2 border-t border-slate-700">
-        <div className="flex items-center justify-center py-1.5 text-slate-400 hover:text-white cursor-pointer text-xs rounded hover:bg-[#1E293B] transition-colors">
-          ◀ Collapse
+        <div className="flex items-center justify-center gap-1.5 py-1.5 text-slate-400 hover:text-white cursor-pointer text-xs rounded hover:bg-[#1E293B] transition-colors">
+          <CaretLeft size={12} />
+          Collapse
         </div>
       </div>
     </aside>
@@ -487,7 +397,6 @@ export default function PlaybookBuilder() {
   const [launched, setLaunched] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Component state
   const [accounts, setAccounts] = useState([...ACCOUNTS]);
   const [cadenceDays, setCadenceDays] = useState(CADENCE_STEPS.map((s) => s.day));
   const [cadenceEnabled, setCadenceEnabled] = useState(CADENCE_STEPS.map(() => true));
@@ -500,10 +409,7 @@ export default function PlaybookBuilder() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const callAPI = async (
-    userMessage: string,
-    currentStage: Stage
-  ): Promise<{ message: string; nextComponent: ComponentType }> => {
+  const callAPI = async (userMessage: string, currentStage: Stage): Promise<{ message: string; nextComponent: ComponentType }> => {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -525,10 +431,7 @@ export default function PlaybookBuilder() {
 
     setTimeout(async () => {
       const result = await callAPI(userText, "goal");
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: result.message, component: result.nextComponent },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", text: result.message, component: result.nextComponent }]);
       setStage("accounts");
       setLoading(false);
     }, 800);
@@ -542,13 +445,31 @@ export default function PlaybookBuilder() {
     setLoading(true);
     setTimeout(async () => {
       const result = await callAPI(`Confirmed: ${stage}`, stage);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: result.message, component: result.nextComponent },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", text: result.message, component: result.nextComponent }]);
       setStage(nextStage);
       setLoading(false);
     }, 800);
+  };
+
+  const handleBack = () => {
+    if (loading || launched) return;
+    const currentIdx = STAGE_ORDER.indexOf(stage);
+    if (currentIdx === 0) return;
+
+    if (currentIdx === 1) {
+      // back to starting screen — clear everything
+      setMessages([]);
+      setStage("goal");
+    } else {
+      // remove last assistant message, step back one stage
+      setMessages((prev) => {
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].role === "assistant") return prev.slice(0, i);
+        }
+        return prev;
+      });
+      setStage(STAGE_ORDER[currentIdx - 1] as Stage);
+    }
   };
 
   const handleToneChange = (t: keyof typeof MESSAGES) => {
@@ -564,6 +485,7 @@ export default function PlaybookBuilder() {
 
   const isInChat = messages.length > 0;
   const isLastStage = stage === "launch";
+  const currentIdx = STAGE_ORDER.indexOf(stage);
 
   return (
     <div className="flex h-screen overflow-hidden bg-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -573,23 +495,15 @@ export default function PlaybookBuilder() {
         {/* Top bar */}
         <header className="flex items-center justify-between px-8 py-3.5 border-b border-gray-200 shrink-0 bg-white">
           <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 w-80">
-            <svg className="w-4 h-4 text-gray-400 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <MagnifyingGlass size={15} className="text-gray-400 mr-2 shrink-0" />
             <span className="text-gray-400 text-sm">Search</span>
           </div>
           <div className="flex items-center gap-3">
             <button className="border border-blue-600 text-blue-600 text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1.5">
-              New
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              New <CaretDown size={11} />
             </button>
             <button className="text-gray-500 text-sm flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-gray-50 transition-colors">
-              Scott Miller
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              Scott Miller <CaretDown size={11} />
             </button>
           </div>
         </header>
@@ -597,7 +511,6 @@ export default function PlaybookBuilder() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {!isInChat ? (
-            /* Starting state */
             <div className="flex flex-col items-center justify-center min-h-full px-8 py-16">
               <div className="w-full max-w-2xl">
                 <div className="text-center mb-8">
@@ -629,9 +542,7 @@ export default function PlaybookBuilder() {
                       className="absolute bottom-3 right-3 text-gray-400 hover:text-blue-500 transition-colors p-0.5"
                       title="Submit"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                      </svg>
+                      <Microphone size={20} />
                     </button>
                   </div>
                 </div>
@@ -645,8 +556,8 @@ export default function PlaybookBuilder() {
                         onClick={() => setGoalInput(s.label)}
                         className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
                       >
-                        <div className={`${s.bg} w-10 h-10 rounded-lg flex items-center justify-center text-lg mb-3`}>
-                          {s.icon}
+                        <div className={`${s.bg} w-10 h-10 rounded-lg flex items-center justify-center mb-3`}>
+                          <s.Icon size={20} className={s.color} weight="fill" />
                         </div>
                         <div className="font-semibold text-gray-900 text-sm">{s.label}</div>
                         <div className="text-gray-500 text-xs mt-1">{s.sub}</div>
@@ -657,7 +568,6 @@ export default function PlaybookBuilder() {
               </div>
             </div>
           ) : (
-            /* Chat view */
             <div className="px-8 py-6 max-w-3xl mx-auto w-full pb-8 space-y-4">
               <p className="text-xs text-gray-400 text-center mb-2">AI Play Builder</p>
 
@@ -682,9 +592,7 @@ export default function PlaybookBuilder() {
                         <div className="ml-8 w-full">
                           <AccountMatching
                             accounts={accounts}
-                            onRemove={(idx) =>
-                              setAccounts((prev) => prev.filter((_, j) => j !== idx))
-                            }
+                            onRemove={(idx) => setAccounts((prev) => prev.filter((_, j) => j !== idx))}
                           />
                         </div>
                       )}
@@ -694,23 +602,14 @@ export default function PlaybookBuilder() {
                             steps={CADENCE_STEPS}
                             days={cadenceDays}
                             enabled={cadenceEnabled}
-                            onDayChange={(idx, val) =>
-                              setCadenceDays((prev) => prev.map((d, j) => (j === idx ? val : d)))
-                            }
-                            onToggle={(idx) =>
-                              setCadenceEnabled((prev) => prev.map((e, j) => (j === idx ? !e : e)))
-                            }
+                            onDayChange={(idx, val) => setCadenceDays((prev) => prev.map((d, j) => (j === idx ? val : d)))}
+                            onToggle={(idx) => setCadenceEnabled((prev) => prev.map((e, j) => (j === idx ? !e : e)))}
                           />
                         </div>
                       )}
                       {msg.component === "messageComposer" && (
                         <div className="ml-8 w-full">
-                          <MessageComposer
-                            tone={tone}
-                            text={repMessage}
-                            onTone={handleToneChange}
-                            onText={setRepMessage}
-                          />
+                          <MessageComposer tone={tone} text={repMessage} onTone={handleToneChange} onText={setRepMessage} />
                         </div>
                       )}
                       {msg.component === "labelConfigurator" && (
@@ -763,10 +662,12 @@ export default function PlaybookBuilder() {
         {/* Bottom bar */}
         <div className="border-t border-gray-200 bg-white px-6 py-3 shrink-0">
           <div className="max-w-3xl mx-auto flex items-center justify-between">
-            <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+            <button
+              onClick={handleBack}
+              disabled={currentIdx === 0 || loading || launched}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft size={14} />
               Back
             </button>
             <div className="flex items-center gap-3">
@@ -775,18 +676,11 @@ export default function PlaybookBuilder() {
               </button>
               <button
                 onClick={isInChat ? handleContinue : handleSubmitGoal}
-                disabled={
-                  loading ||
-                  (!isInChat && !goalInput.trim()) ||
-                  (isInChat && isLastStage) ||
-                  launched
-                }
+                disabled={loading || (!isInChat && !goalInput.trim()) || (isInChat && isLastStage) || launched}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm px-6 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
               >
                 Continue
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <CaretRight size={13} weight="bold" />
               </button>
             </div>
           </div>
