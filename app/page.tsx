@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   MagnifyingGlass,
   CaretDown,
@@ -22,6 +24,10 @@ import {
   CalendarBlank,
   Package,
   RocketLaunch,
+  ChatCircle,
+  ShieldCheck,
+  MapTrifold,
+  ArrowCounterClockwise,
 } from "@phosphor-icons/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,10 +69,15 @@ const MESSAGES = {
   Informational: "A new retention play has been launched. 18 accounts in your territory have been identified as at-risk based on revenue trend and visit recency. Please review and schedule visits accordingly.",
 };
 
-const SUGGESTIONS = [
+const ALL_SUGGESTIONS = [
   { label: "Accounts down in revenue", sub: "Re-engage declining customers", bg: "bg-red-50", Icon: TrendDown, color: "text-red-500" },
   { label: "Rarely visited prospects", sub: "Target neglected opportunities", bg: "bg-orange-50", Icon: CalendarBlank, color: "text-orange-500" },
   { label: "Push a product line", sub: "Promote specific products", bg: "bg-green-50", Icon: Package, color: "text-green-600" },
+  { label: "Re-engage quiet accounts", sub: "Accounts with no contact in 60+ days", bg: "bg-purple-50", Icon: ChatCircle, color: "text-purple-500" },
+  { label: "Protect top revenue accounts", sub: "High-value accounts showing risk signals", bg: "bg-blue-50", Icon: ShieldCheck, color: "text-blue-500" },
+  { label: "Grow a new territory", sub: "Prospect accounts with no prior visits", bg: "bg-teal-50", Icon: MapTrifold, color: "text-teal-600" },
+  { label: "Drive seasonal promotions", sub: "Push time-sensitive product offers", bg: "bg-yellow-50", Icon: Tag, color: "text-yellow-600" },
+  { label: "Recover churned accounts", sub: "Bring back lapsed customers", bg: "bg-rose-50", Icon: ArrowCounterClockwise, color: "text-rose-500" },
 ];
 
 const STAGE_ORDER: Stage[] = ["goal", "accounts", "cadence", "message", "label", "launch"];
@@ -108,9 +119,79 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
   );
 }
 
+// ─── Side Panel ───────────────────────────────────────────────────────────────
+
+function SidePanel({
+  open,
+  onClose,
+  title,
+  onSave,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  onSave: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 bg-black/20 z-40 transition-opacity duration-200 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={onClose}
+      />
+      {/* Panel */}
+      <div
+        className={`fixed inset-y-0 right-0 w-[480px] bg-white shadow-xl z-50 flex flex-col transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"}`}
+      >
+        {/* Header */}
+        <div className="border-b border-gray-200 px-6 py-[26px] flex items-center justify-between shrink-0">
+          <span className="font-semibold text-gray-900" style={{ fontSize: "17px" }}>{title}</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="text-sm px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSave}
+              className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center py-2.5 border-b border-gray-100">
+      <div className="w-44 text-xs text-gray-500 shrink-0">{label}</div>
+      <div className="flex-1 text-sm text-gray-900">{children}</div>
+    </div>
+  );
+}
+
 // ─── Embedded Components ──────────────────────────────────────────────────────
 
-function AccountMatching({ accounts, onRemove }: { accounts: typeof ACCOUNTS; onRemove: (i: number) => void }) {
+function AccountMatching({
+  accounts,
+  onRemove,
+  onAdjust,
+}: {
+  accounts: typeof ACCOUNTS;
+  onRemove: (i: number) => void;
+  onAdjust: () => void;
+}) {
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mt-3 w-full max-w-2xl">
       <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200">
@@ -145,26 +226,40 @@ function AccountMatching({ accounts, onRemove }: { accounts: typeof ACCOUNTS; on
         ))}
       </div>
       <div className="px-4 py-2.5 border-t border-gray-100">
-        <button className="text-blue-600 text-xs hover:underline">Adjust criteria</button>
+        <button onClick={onAdjust} className="text-blue-600 text-xs hover:underline">Adjust criteria</button>
       </div>
     </div>
   );
 }
 
 function NudgeCadence({
-  steps, days, enabled, onDayChange, onToggle,
+  steps,
+  days,
+  enabled,
+  titles,
+  descriptions,
+  onDayChange,
+  onToggle,
+  onEdit,
 }: {
   steps: typeof CADENCE_STEPS;
   days: number[];
   enabled: boolean[];
+  titles: string[];
+  descriptions: string[];
   onDayChange: (i: number, v: number) => void;
   onToggle: (i: number) => void;
+  onEdit: (i: number) => void;
 }) {
   return (
     <div className="border border-gray-200 rounded-lg bg-white mt-3 w-full max-w-2xl overflow-hidden">
       <div className="divide-y divide-gray-100">
         {steps.map((s, i) => (
-          <div key={s.title} className={`flex items-start gap-4 px-4 py-3 transition-opacity ${!enabled[i] ? "opacity-40" : ""}`}>
+          <button
+            key={s.title}
+            onClick={() => onEdit(i)}
+            className={`w-full flex items-start gap-4 px-4 py-3 text-left transition-all hover:bg-gray-50 ${!enabled[i] ? "opacity-40" : ""}`}
+          >
             <div className="flex flex-col items-center pt-1 shrink-0">
               <div className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${enabled[i] ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"}`} />
               {i < steps.length - 1 && <div className="w-px h-8 bg-gray-200 mt-1" />}
@@ -172,19 +267,17 @@ function NudgeCadence({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Day</span>
-                <input
-                  type="number"
-                  value={days[i]}
-                  onChange={(e) => onDayChange(i, Number(e.target.value))}
-                  className="w-12 text-xs border border-gray-200 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  min={1}
-                />
+                <span className="w-12 text-xs border border-gray-200 rounded px-1.5 py-0.5 text-center bg-white">
+                  {days[i]}
+                </span>
               </div>
-              <div className="font-medium text-sm text-gray-900 mt-1">{s.title}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{s.description}</div>
+              <div className="font-medium text-sm text-gray-900 mt-1">{titles[i]}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{descriptions[i]}</div>
             </div>
-            <Toggle enabled={enabled[i]} onToggle={() => onToggle(i)} />
-          </div>
+            <span onClick={(e) => { e.stopPropagation(); onToggle(i); }}>
+              <Toggle enabled={enabled[i]} onToggle={() => onToggle(i)} />
+            </span>
+          </button>
         ))}
       </div>
     </div>
@@ -281,7 +374,7 @@ function LaunchSummary({
           <RocketLaunch size={32} weight="fill" className="text-green-600" />
         </div>
         <h3 className="font-semibold text-green-800 text-base">Play launched. 4 reps have been notified.</h3>
-        <button className="mt-3 text-blue-600 text-sm hover:underline">View live play dashboard →</button>
+        <Link href="/dashboard" className="mt-3 text-blue-600 text-sm hover:underline block">View live play dashboard →</Link>
       </div>
     );
   }
@@ -339,18 +432,20 @@ function LaunchSummary({
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { label: "Dashboard", Icon: SquaresFour },
-  { label: "Companies", Icon: Buildings },
-  { label: "Notes", Icon: Note },
-  { label: "Plays", Icon: Play, active: true },
-  { label: "Tasks", Icon: CheckSquare },
-  { label: "Opportunities", Icon: CurrencyDollar },
-  { label: "Reports", Icon: ChartBar },
-  { label: "Promotions", Icon: Tag },
-  { label: "Maps", Icon: MapPin },
+  { label: "Dashboard", Icon: SquaresFour, href: "/dashboard" },
+  { label: "Companies", Icon: Buildings, href: "#" },
+  { label: "Notes", Icon: Note, href: "#" },
+  { label: "Plays", Icon: Play, href: "/" },
+  { label: "Tasks", Icon: CheckSquare, href: "#" },
+  { label: "Opportunities", Icon: CurrencyDollar, href: "#" },
+  { label: "Reports", Icon: ChartBar, href: "#" },
+  { label: "Promotions", Icon: Tag, href: "#" },
+  { label: "Maps", Icon: MapPin, href: "#" },
 ];
 
 function Sidebar() {
+  const pathname = usePathname();
+
   return (
     <aside className="w-44 bg-[#0F172A] flex flex-col shrink-0 h-screen sticky top-0">
       <div className="px-4 py-5">
@@ -364,18 +459,22 @@ function Sidebar() {
         </div>
       </div>
       <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, Icon, active }) => (
-          <div
-            key={label}
-            className={`flex items-center gap-2.5 px-3 py-2.5 rounded cursor-pointer text-xs transition-colors ${
-              active ? "bg-[#334155] text-white font-medium" : "text-slate-400 hover:text-white hover:bg-[#1E293B]"
-            }`}
-          >
-            <Icon size={15} weight={active ? "fill" : "regular"} className="shrink-0" />
-            <span>{label}</span>
-            {active && <span className="ml-auto w-1 h-4 bg-blue-500 rounded-full" />}
-          </div>
-        ))}
+        {NAV_ITEMS.map(({ label, Icon, href }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={label}
+              href={href}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded text-xs transition-colors ${
+                active ? "bg-[#334155] text-white font-medium" : "text-slate-400 hover:text-white hover:bg-[#1E293B]"
+              }`}
+            >
+              <Icon size={15} weight={active ? "fill" : "regular"} className="shrink-0" />
+              <span>{label}</span>
+              {active && <span className="ml-auto w-1 h-4 bg-blue-500 rounded-full" />}
+            </Link>
+          );
+        })}
       </nav>
       <div className="p-2 border-t border-slate-700">
         <div className="flex items-center justify-center gap-1.5 py-1.5 text-slate-400 hover:text-white cursor-pointer text-xs rounded hover:bg-[#1E293B] transition-colors">
@@ -400,14 +499,57 @@ export default function PlaybookBuilder() {
   const [accounts, setAccounts] = useState([...ACCOUNTS]);
   const [cadenceDays, setCadenceDays] = useState(CADENCE_STEPS.map((s) => s.day));
   const [cadenceEnabled, setCadenceEnabled] = useState(CADENCE_STEPS.map(() => true));
+  const [cadenceTitles, setCadenceTitles] = useState(CADENCE_STEPS.map((s) => s.title));
+  const [cadenceDescriptions, setCadenceDescriptions] = useState(CADENCE_STEPS.map((s) => s.description));
   const [tone, setTone] = useState<keyof typeof MESSAGES>("Direct");
   const [repMessage, setRepMessage] = useState(MESSAGES["Direct"]);
   const [playLabel, setPlayLabel] = useState("Retention — Q3 2026");
   const [playName, setPlayName] = useState("Revenue Protection Play");
 
+  // Dynamic suggestions
+  const [visibleSuggestions, setVisibleSuggestions] = useState<typeof ALL_SUGGESTIONS>([]);
+  useEffect(() => {
+    const shuffled = [...ALL_SUGGESTIONS].sort(() => Math.random() - 0.5);
+    setVisibleSuggestions(shuffled.slice(0, 3));
+  }, []);
+
+  // Criteria panel state
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
+  const [criteriaRevenue, setCriteriaRevenue] = useState(-10);
+  const [criteriaDays, setCriteriaDays] = useState(14);
+  const [criteriaReps, setCriteriaReps] = useState<string[]>([]);
+  const [criteriaActiveOnly, setCriteriaActiveOnly] = useState(true);
+
+  // Nudge edit panel state
+  const [nudgeEditOpen, setNudgeEditOpen] = useState(false);
+  const [editingNudgeIdx, setEditingNudgeIdx] = useState<number | null>(null);
+  const [editDay, setEditDay] = useState(1);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editEnabled, setEditEnabled] = useState(true);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  const openNudgeEdit = (i: number) => {
+    setEditingNudgeIdx(i);
+    setEditDay(cadenceDays[i]);
+    setEditTitle(cadenceTitles[i]);
+    setEditDescription(cadenceDescriptions[i]);
+    setEditEnabled(cadenceEnabled[i]);
+    setNudgeEditOpen(true);
+  };
+
+  const saveNudgeEdit = () => {
+    if (editingNudgeIdx === null) return;
+    const i = editingNudgeIdx;
+    setCadenceDays((prev) => prev.map((d, j) => (j === i ? editDay : d)));
+    setCadenceTitles((prev) => prev.map((t, j) => (j === i ? editTitle : t)));
+    setCadenceDescriptions((prev) => prev.map((d, j) => (j === i ? editDescription : d)));
+    setCadenceEnabled((prev) => prev.map((e, j) => (j === i ? editEnabled : e)));
+    setNudgeEditOpen(false);
+  };
 
   const callAPI = async (userMessage: string, currentStage: Stage): Promise<{ message: string; nextComponent: ComponentType }> => {
     try {
@@ -457,11 +599,9 @@ export default function PlaybookBuilder() {
     if (currentIdx === 0) return;
 
     if (currentIdx === 1) {
-      // back to starting screen — clear everything
       setMessages([]);
       setStage("goal");
     } else {
-      // remove last assistant message, step back one stage
       setMessages((prev) => {
         for (let i = prev.length - 1; i >= 0; i--) {
           if (prev[i].role === "assistant") return prev.slice(0, i);
@@ -480,6 +620,8 @@ export default function PlaybookBuilder() {
   const cadenceStepsWithEnabled = CADENCE_STEPS.map((s, i) => ({
     ...s,
     day: cadenceDays[i],
+    title: cadenceTitles[i],
+    description: cadenceDescriptions[i],
     enabled: cadenceEnabled[i],
   }));
 
@@ -487,9 +629,107 @@ export default function PlaybookBuilder() {
   const isLastStage = stage === "launch";
   const currentIdx = STAGE_ORDER.indexOf(stage);
 
+  const revenueOptions = [
+    { value: 0, label: "Any decline" },
+    { value: -5, label: "< -5%" },
+    { value: -10, label: "< -10%" },
+    { value: -20, label: "< -20%" },
+  ];
+
   return (
     <div className="flex h-screen overflow-hidden bg-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       <Sidebar />
+
+      {/* Criteria Side Panel */}
+      <SidePanel
+        open={criteriaOpen}
+        onClose={() => setCriteriaOpen(false)}
+        title="Adjust criteria"
+        onSave={() => setCriteriaOpen(false)}
+      >
+        <FieldRow label="Revenue trend">
+          <select
+            value={criteriaRevenue}
+            onChange={(e) => setCriteriaRevenue(Number(e.target.value))}
+            className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+          >
+            {revenueOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </FieldRow>
+        <FieldRow label="Days since visit">
+          <input
+            type="number"
+            value={criteriaDays}
+            onChange={(e) => setCriteriaDays(Number(e.target.value))}
+            min={1}
+            className="w-20 border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </FieldRow>
+        <FieldRow label="Rep filter">
+          <div className="flex flex-col gap-1.5">
+            {["J. Harmon", "S. Briggs", "T. Nguyen"].map((rep) => (
+              <label key={rep} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={criteriaReps.includes(rep)}
+                  onChange={(e) => {
+                    setCriteriaReps((prev) =>
+                      e.target.checked ? [...prev, rep] : prev.filter((r) => r !== rep)
+                    );
+                  }}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-400"
+                />
+                <span className="text-sm text-gray-700">{rep}</span>
+              </label>
+            ))}
+          </div>
+        </FieldRow>
+        <FieldRow label="Account status">
+          <div className="flex items-center gap-2">
+            <Toggle enabled={criteriaActiveOnly} onToggle={() => setCriteriaActiveOnly((v) => !v)} />
+            <span className="text-sm text-gray-600">Active only</span>
+          </div>
+        </FieldRow>
+      </SidePanel>
+
+      {/* Nudge Edit Side Panel */}
+      <SidePanel
+        open={nudgeEditOpen}
+        onClose={() => setNudgeEditOpen(false)}
+        title="Edit step"
+        onSave={saveNudgeEdit}
+      >
+        <FieldRow label="Day">
+          <input
+            type="number"
+            value={editDay}
+            onChange={(e) => setEditDay(Number(e.target.value))}
+            min={1}
+            className="w-20 border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </FieldRow>
+        <FieldRow label="Step title">
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </FieldRow>
+        <FieldRow label="Description">
+          <textarea
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            rows={3}
+            className="w-full border border-gray-200 rounded px-2 py-1 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </FieldRow>
+        <FieldRow label="Enabled">
+          <Toggle enabled={editEnabled} onToggle={() => setEditEnabled((v) => !v)} />
+        </FieldRow>
+      </SidePanel>
 
       <div className="flex flex-col flex-1 min-w-0">
         {/* Top bar */}
@@ -550,11 +790,12 @@ export default function PlaybookBuilder() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-3">Or start with a suggestion:</p>
                   <div className="grid grid-cols-3 gap-3">
-                    {SUGGESTIONS.map((s) => (
+                    {visibleSuggestions.map((s, idx) => (
                       <button
                         key={s.label}
                         onClick={() => setGoalInput(s.label)}
-                        className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
+                        className="animate-fade-slide-in bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
+                        style={{ animationDelay: `${idx * 100}ms` }}
                       >
                         <div className={`${s.bg} w-10 h-10 rounded-lg flex items-center justify-center mb-3`}>
                           <s.Icon size={20} className={s.color} weight="fill" />
@@ -593,6 +834,7 @@ export default function PlaybookBuilder() {
                           <AccountMatching
                             accounts={accounts}
                             onRemove={(idx) => setAccounts((prev) => prev.filter((_, j) => j !== idx))}
+                            onAdjust={() => setCriteriaOpen(true)}
                           />
                         </div>
                       )}
@@ -602,8 +844,11 @@ export default function PlaybookBuilder() {
                             steps={CADENCE_STEPS}
                             days={cadenceDays}
                             enabled={cadenceEnabled}
+                            titles={cadenceTitles}
+                            descriptions={cadenceDescriptions}
                             onDayChange={(idx, val) => setCadenceDays((prev) => prev.map((d, j) => (j === idx ? val : d)))}
                             onToggle={(idx) => setCadenceEnabled((prev) => prev.map((e, j) => (j === idx ? !e : e)))}
+                            onEdit={openNudgeEdit}
                           />
                         </div>
                       )}
