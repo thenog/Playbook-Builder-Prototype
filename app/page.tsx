@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, ElementType } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   MagnifyingGlass,
   CaretDown,
@@ -29,9 +28,27 @@ import {
   ShieldCheck,
   MapTrifold,
   ArrowCounterClockwise,
+  Desktop,
+  DeviceMobile,
+  Lightning,
+  Star,
+  Gear,
+  Globe,
+  Users,
+  Briefcase,
+  Cube,
 } from "@phosphor-icons/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type PrototypeType = "desktop" | "mobile";
+
+interface Prototype {
+  id: string;
+  name: string;
+  type: PrototypeType;
+  Icon: ElementType;
+}
 
 type Stage = "goal" | "accounts" | "cadence" | "message" | "label" | "launch";
 type ComponentType =
@@ -728,20 +745,26 @@ function LaunchSummary({
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { label: "Dashboard", Icon: SquaresFour, href: "/dashboard" },
-  { label: "Companies", Icon: Buildings, href: "#" },
-  { label: "Notes", Icon: Note, href: "#" },
-  { label: "Plays", Icon: Play, href: "/" },
-  { label: "Tasks", Icon: CheckSquare, href: "#" },
-  { label: "Opportunities", Icon: CurrencyDollar, href: "#" },
-  { label: "Reports", Icon: ChartBar, href: "#" },
-  { label: "Promotions", Icon: Tag, href: "#" },
-  { label: "Maps", Icon: MapPin, href: "#" },
+  { id: "dashboard", label: "Dashboard", Icon: SquaresFour, href: "/dashboard" },
+  { id: "companies", label: "Companies", Icon: Buildings, href: "#" },
+  { id: "notes", label: "Notes", Icon: Note, href: "#" },
+  { id: "plays", label: "Plays", Icon: Play, href: "#" },
+  { id: "tasks", label: "Tasks", Icon: CheckSquare, href: "#" },
+  { id: "opportunities", label: "Opportunities", Icon: CurrencyDollar, href: "#" },
+  { id: "reports", label: "Reports", Icon: ChartBar, href: "#" },
+  { id: "promotions", label: "Promotions", Icon: Tag, href: "#" },
+  { id: "maps", label: "Maps", Icon: MapPin, href: "#" },
 ];
 
-function Sidebar() {
-  const pathname = usePathname();
-
+function Sidebar({
+  prototypes,
+  activeId,
+  onSelect,
+}: {
+  prototypes: Prototype[];
+  activeId: string;
+  onSelect: (id: string) => void;
+}) {
   return (
     <aside className="w-44 bg-[#0F172A] flex flex-col shrink-0 h-screen sticky top-0">
       <div className="px-4 py-5">
@@ -755,20 +778,36 @@ function Sidebar() {
         </div>
       </div>
       <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, Icon, href }) => {
-          const active = pathname === href;
+        {NAV_ITEMS.map(({ id, label, Icon }) => {
+          const active = activeId === id;
           return (
-            <Link
+            <button
               key={label}
-              href={href}
-              className={`flex items-center gap-2.5 px-3 py-2.5 rounded text-xs transition-colors ${
+              onClick={() => onSelect(id)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded text-xs transition-colors ${
                 active ? "bg-[#334155] text-white font-medium" : "text-slate-400 hover:text-white hover:bg-[#1E293B]"
               }`}
             >
               <Icon size={15} weight={active ? "fill" : "regular"} className="shrink-0" />
               <span>{label}</span>
               {active && <span className="ml-auto w-1 h-4 bg-blue-500 rounded-full" />}
-            </Link>
+            </button>
+          );
+        })}
+        {prototypes.map((p) => {
+          const active = activeId === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded text-xs transition-colors ${
+                active ? "bg-[#334155] text-white font-medium" : "text-slate-400 hover:text-white hover:bg-[#1E293B]"
+              }`}
+            >
+              <p.Icon size={15} weight={active ? "fill" : "regular"} className="shrink-0" />
+              <span className="truncate">{p.name}</span>
+              {active && <span className="ml-auto w-1 h-4 bg-blue-500 rounded-full shrink-0" />}
+            </button>
           );
         })}
       </nav>
@@ -791,7 +830,7 @@ function pickSuggestions(exclude: typeof ALL_SUGGESTIONS = []): typeof ALL_SUGGE
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function PlaybookBuilder() {
+function PlayBuilderView({ onCreatePrototype }: { onCreatePrototype: (type: PrototypeType) => void }) {
   const [stage, setStage] = useState<Stage>("goal");
   const [goalInput, setGoalInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -799,6 +838,7 @@ export default function PlaybookBuilder() {
   const [launched, setLaunched] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [newDropdownOpen, setNewDropdownOpen] = useState(false);
 
   const [accounts, setAccounts] = useState([...ACCOUNTS]);
   const [cadenceDays, setCadenceDays] = useState(CADENCE_STEPS.map((s) => s.day));
@@ -976,9 +1016,7 @@ export default function PlaybookBuilder() {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      <Sidebar />
-
+    <>
       {/* Criteria Side Panel */}
       <SidePanel
         open={criteriaOpen}
@@ -1092,9 +1130,30 @@ export default function PlaybookBuilder() {
             <span className="text-gray-400 text-sm">Search</span>
           </div>
           <div className="flex items-center gap-3">
-            <button className="border border-blue-600 text-blue-600 text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1.5">
-              New <CaretDown size={11} />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setNewDropdownOpen((v) => !v)}
+                className="border border-blue-600 text-blue-600 text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1.5"
+              >
+                New <CaretDown size={11} />
+              </button>
+              {newDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                  <button
+                    onClick={() => { setNewDropdownOpen(false); onCreatePrototype("desktop"); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <Desktop size={15} className="shrink-0" /> Desktop Prototype
+                  </button>
+                  <button
+                    onClick={() => { setNewDropdownOpen(false); onCreatePrototype("mobile"); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <DeviceMobile size={15} className="shrink-0" /> Mobile Prototype
+                  </button>
+                </div>
+              )}
+            </div>
             <button className="text-gray-500 text-sm flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-gray-50 transition-colors">
               Scott Miller <CaretDown size={11} />
             </button>
@@ -1300,6 +1359,194 @@ export default function PlaybookBuilder() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+// ─── Prototype Canvas ─────────────────────────────────────────────────────────
+
+function PrototypeCanvas({ prototype }: { prototype: Prototype }) {
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center gap-3 text-center">
+      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+        <prototype.Icon size={24} className="text-gray-400" />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-gray-700">{prototype.name}</p>
+        <p className="text-xs text-gray-400 mt-0.5">Start building your prototype</p>
+      </div>
+    </div>
+  );
+
+  if (prototype.type === "mobile") {
+    return (
+      <div className="flex flex-col flex-1 min-w-0">
+        <div
+          className="flex-1 overflow-y-auto flex items-center justify-center px-8 py-10"
+          style={{
+            backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
+            backgroundSize: "20px 20px",
+          }}
+        >
+          <div
+            className="relative bg-white rounded-[3rem] shadow-2xl overflow-hidden shrink-0 flex items-center justify-center"
+            style={{
+              width: 375,
+              height: 812,
+              border: "10px solid #111827",
+              boxShadow: "0 0 0 2px #374151, 0 30px 80px rgba(0,0,0,0.35)",
+            }}
+          >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-[#111827] rounded-b-2xl z-10" />
+            {emptyState}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col flex-1 min-w-0">
+      <div
+        className="flex-1 overflow-y-auto flex items-center justify-center px-8 py-10"
+        style={{
+          backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+        }}
+      >
+        {emptyState}
+      </div>
+    </div>
+  );
+}
+
+// ─── Create Prototype Modal ───────────────────────────────────────────────────
+
+const PICKER_ICONS: { Icon: ElementType; label: string }[] = [
+  { Icon: RocketLaunch, label: "Rocket" },
+  { Icon: Lightning, label: "Lightning" },
+  { Icon: Star, label: "Star" },
+  { Icon: Gear, label: "Gear" },
+  { Icon: Globe, label: "Globe" },
+  { Icon: Users, label: "Users" },
+  { Icon: Briefcase, label: "Briefcase" },
+  { Icon: Cube, label: "Cube" },
+];
+
+function CreatePrototypeModal({
+  type,
+  onConfirm,
+  onClose,
+}: {
+  type: PrototypeType;
+  onConfirm: (name: string, Icon: ElementType) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState<ElementType>(() => RocketLaunch);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <span className="font-semibold text-gray-900 text-sm">
+              New {type === "desktop" ? "Desktop" : "Mobile"} Prototype
+            </span>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="px-6 py-5 space-y-5">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Name</label>
+              <input
+                autoFocus
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) onConfirm(name.trim(), selectedIcon); }}
+                placeholder="Prototype name"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-gray-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-2">Icon</label>
+              <div className="grid grid-cols-4 gap-2">
+                {PICKER_ICONS.map(({ Icon, label }) => {
+                  const active = selectedIcon === Icon;
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => setSelectedIcon(() => Icon)}
+                      className={`flex items-center justify-center h-10 rounded-lg border transition-colors ${
+                        active
+                          ? "border-blue-500 bg-blue-50 text-blue-600"
+                          : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                      title={label}
+                    >
+                      <Icon size={18} weight={active ? "fill" : "regular"} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="px-6 pb-5 flex items-center justify-end gap-2">
+            <button
+              onClick={onClose}
+              className="text-sm px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { if (name.trim()) onConfirm(name.trim(), selectedIcon); }}
+              disabled={!name.trim()}
+              className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Create
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── App Root ─────────────────────────────────────────────────────────────────
+
+export default function PlaybookBuilder() {
+  const [prototypes, setPrototypes] = useState<Prototype[]>([]);
+  const [activeId, setActiveId] = useState("plays");
+  const [createModalType, setCreateModalType] = useState<PrototypeType | null>(null);
+
+  const handleConfirmCreate = (name: string, Icon: ElementType) => {
+    const id = `prototype-${Date.now()}`;
+    const newPrototype: Prototype = { id, name, type: createModalType!, Icon };
+    setPrototypes((prev) => [...prev, newPrototype]);
+    setActiveId(id);
+    setCreateModalType(null);
+  };
+
+  const activePrototype = prototypes.find((p) => p.id === activeId);
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <Sidebar prototypes={prototypes} activeId={activeId} onSelect={setActiveId} />
+      {activeId === "plays" ? (
+        <PlayBuilderView onCreatePrototype={(type) => setCreateModalType(type)} />
+      ) : activePrototype ? (
+        <PrototypeCanvas prototype={activePrototype} />
+      ) : null}
+      {createModalType && (
+        <CreatePrototypeModal
+          type={createModalType}
+          onConfirm={handleConfirmCreate}
+          onClose={() => setCreateModalType(null)}
+        />
+      )}
     </div>
   );
 }
