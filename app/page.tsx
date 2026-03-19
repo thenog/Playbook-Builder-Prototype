@@ -1406,7 +1406,7 @@ function PrototypeCanvas({
   );
 
   const fab = (
-    <div className="absolute bottom-6 right-6 flex flex-col items-end gap-2">
+    <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 z-20">
       {fabOpen && (
         <div className="flex flex-col items-end gap-1.5 mb-1">
           <button
@@ -1748,7 +1748,7 @@ export default function PlaybookBuilder() {
   return (
     <div className="flex h-screen overflow-hidden bg-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       <Sidebar prototypes={prototypes} activeId={activeId} onSelect={setActiveId} />
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopBar onCreatePrototype={(type) => setCreateModalType(type)} />
         {activeId === "plays" ? (
           <PlayBuilderView />
