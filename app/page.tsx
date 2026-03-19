@@ -1389,19 +1389,10 @@ function PrototypeCanvas({
   useEffect(() => { setRenameValue(prototype.name); }, [prototype.name]);
   useEffect(() => { setSelectedIcon(() => prototype.Icon); }, [prototype.Icon]);
 
-  const emptyState = (
-    <div className="flex flex-col items-center justify-center gap-3 text-center">
-      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-        <prototype.Icon size={24} className="text-gray-400" />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-gray-700">{prototype.name}</p>
-        <p className="text-xs text-gray-400 mt-0.5">Start building your prototype</p>
-        <div className="mt-3 flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-md px-2.5 py-1.5">
-          <span className="text-xs text-gray-400 shrink-0">File:</span>
-          <code className="text-xs text-gray-600 font-mono truncate">{prototype.filePath}</code>
-        </div>
-      </div>
+  const fileChip = (
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-md px-2.5 py-1.5 pointer-events-none">
+      <span className="text-xs text-white/60 shrink-0">File:</span>
+      <code className="text-xs text-white font-mono whitespace-nowrap">{prototype.filePath}</code>
     </div>
   );
 
@@ -1528,7 +1519,7 @@ function PrototypeCanvas({
           }}
         >
           <div
-            className="relative bg-white rounded-[3rem] shadow-2xl overflow-hidden shrink-0 flex items-center justify-center"
+            className="relative rounded-[3rem] shadow-2xl overflow-hidden shrink-0"
             style={{
               width: 375,
               height: 812,
@@ -1537,9 +1528,14 @@ function PrototypeCanvas({
             }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-[#111827] rounded-b-2xl z-10" />
-            {emptyState}
+            <iframe
+              src={`/prototypes/${prototype.slug}`}
+              className="w-full h-full border-0 bg-white"
+              title={prototype.name}
+            />
           </div>
         </div>
+        {fileChip}
         {fab}
         {renameModal}
         {iconModal}
@@ -1550,14 +1546,19 @@ function PrototypeCanvas({
   return (
     <div className="flex flex-col flex-1 min-w-0 relative">
       <div
-        className="flex-1 overflow-y-auto flex items-center justify-center px-8 py-10"
+        className="flex-1 relative"
         style={{
           backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
           backgroundSize: "20px 20px",
         }}
       >
-        {emptyState}
+        <iframe
+          src={`/prototypes/${prototype.slug}`}
+          className="w-full h-full border-0 bg-white"
+          title={prototype.name}
+        />
       </div>
+      {fileChip}
       {fab}
       {renameModal}
       {iconModal}
