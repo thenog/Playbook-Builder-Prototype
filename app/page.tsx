@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   MagnifyingGlass,
   CaretDown,
+  CaretUp,
   CaretRight,
   CaretLeft,
   ArrowLeft,
@@ -79,6 +80,120 @@ const ALL_SUGGESTIONS = [
   { label: "Drive seasonal promotions", sub: "Push time-sensitive product offers", bg: "bg-yellow-50", Icon: Tag, color: "text-yellow-600" },
   { label: "Recover churned accounts", sub: "Bring back lapsed customers", bg: "bg-rose-50", Icon: ArrowCounterClockwise, color: "text-rose-500" },
 ];
+
+type AccountRow = { name: string; rep: string; days: number; trend: number };
+
+const SUGGESTION_ACCOUNTS: Record<string, AccountRow[]> = {
+  "Accounts down in revenue": [
+    { name: "Central States Trucking", rep: "J. Harmon", days: 47, trend: -22 },
+    { name: "Midwest Fleet & Tire Co.", rep: "J. Harmon", days: 18, trend: -14 },
+    { name: "Trans-Iowa Carriers", rep: "S. Briggs", days: 39, trend: -31 },
+    { name: "Hawkeye Equipment Rental", rep: "S. Briggs", days: 31, trend: -8 },
+    { name: "I-80 Fleet Services", rep: "T. Nguyen", days: 22, trend: -11 },
+    { name: "Great Plains Logistics", rep: "J. Harmon", days: 55, trend: -19 },
+    { name: "Cornbelt Carriers", rep: "T. Nguyen", days: 28, trend: -6 },
+    { name: "Heartland Freight", rep: "S. Briggs", days: 44, trend: -27 },
+    { name: "River Road Transport", rep: "J. Harmon", days: 33, trend: -13 },
+    { name: "Prairie State Hauling", rep: "T. Nguyen", days: 61, trend: -34 },
+    { name: "Quad Cities Fleet", rep: "S. Briggs", days: 19, trend: -9 },
+    { name: "Metro Tire & Auto", rep: "J. Harmon", days: 41, trend: -16 },
+  ],
+  "Rarely visited prospects": [
+    { name: "Bluegrass Equipment Co.", rep: "S. Briggs", days: 91, trend: 3 },
+    { name: "Sunset Valley Logistics", rep: "T. Nguyen", days: 84, trend: -2 },
+    { name: "North Plains Trucking", rep: "J. Harmon", days: 77, trend: 1 },
+    { name: "Lakeshore Fleet Mgmt", rep: "S. Briggs", days: 112, trend: -5 },
+    { name: "Ridgeline Transport", rep: "T. Nguyen", days: 68, trend: 0 },
+    { name: "Eastern Gateway Freight", rep: "J. Harmon", days: 95, trend: -1 },
+    { name: "Silver Creek Carriers", rep: "S. Briggs", days: 103, trend: 4 },
+    { name: "Ozark Hauling Co.", rep: "T. Nguyen", days: 88, trend: -3 },
+    { name: "Timberline Fleet", rep: "J. Harmon", days: 72, trend: 2 },
+    { name: "Flatlands Transport", rep: "S. Briggs", days: 119, trend: -7 },
+    { name: "Highbridge Logistics", rep: "T. Nguyen", days: 66, trend: 6 },
+    { name: "Crestview Auto & Tire", rep: "J. Harmon", days: 81, trend: -4 },
+  ],
+  "Push a product line": [
+    { name: "Central States Trucking", rep: "J. Harmon", days: 12, trend: 8 },
+    { name: "Midwest Fleet & Tire Co.", rep: "J. Harmon", days: 5, trend: 14 },
+    { name: "Hawkeye Equipment Rental", rep: "S. Briggs", days: 9, trend: 5 },
+    { name: "I-80 Fleet Services", rep: "T. Nguyen", days: 3, trend: 11 },
+    { name: "Great Plains Logistics", rep: "J. Harmon", days: 21, trend: 7 },
+    { name: "Cornbelt Carriers", rep: "T. Nguyen", days: 14, trend: 3 },
+    { name: "River Road Transport", rep: "J. Harmon", days: 7, trend: 19 },
+    { name: "Quad Cities Fleet", rep: "S. Briggs", days: 18, trend: 9 },
+    { name: "Metro Tire & Auto", rep: "J. Harmon", days: 6, trend: 12 },
+    { name: "North Plains Trucking", rep: "S. Briggs", days: 25, trend: 4 },
+    { name: "Lakeshore Fleet Mgmt", rep: "T. Nguyen", days: 11, trend: 16 },
+  ],
+  "Re-engage quiet accounts": [
+    { name: "Blue Ridge Freight", rep: "J. Harmon", days: 68, trend: -3 },
+    { name: "Pinecrest Carriers", rep: "S. Briggs", days: 74, trend: -8 },
+    { name: "Dune Coast Logistics", rep: "T. Nguyen", days: 61, trend: -1 },
+    { name: "Valley View Transport", rep: "J. Harmon", days: 82, trend: -12 },
+    { name: "Iron Range Hauling", rep: "S. Briggs", days: 71, trend: -5 },
+    { name: "Lakewood Fleet Co.", rep: "T. Nguyen", days: 65, trend: -9 },
+    { name: "Maple Leaf Carriers", rep: "J. Harmon", days: 78, trend: -2 },
+    { name: "Riverbend Logistics", rep: "S. Briggs", days: 90, trend: -15 },
+    { name: "Summit Freight Inc.", rep: "T. Nguyen", days: 63, trend: -6 },
+    { name: "Westgate Auto Parts", rep: "J. Harmon", days: 86, trend: -18 },
+    { name: "Prairie Wind Carriers", rep: "S. Briggs", days: 69, trend: -4 },
+    { name: "Crossroads Tire & Fleet", rep: "T. Nguyen", days: 77, trend: -10 },
+    { name: "Hillside Equipment", rep: "J. Harmon", days: 73, trend: -7 },
+  ],
+  "Protect top revenue accounts": [
+    { name: "Midwest Fleet & Tire Co.", rep: "J. Harmon", days: 8, trend: -4 },
+    { name: "Central States Trucking", rep: "J. Harmon", days: 15, trend: -7 },
+    { name: "Great Plains Logistics", rep: "S. Briggs", days: 11, trend: -11 },
+    { name: "Trans-Iowa Carriers", rep: "T. Nguyen", days: 22, trend: -6 },
+    { name: "I-80 Fleet Services", rep: "J. Harmon", days: 6, trend: -3 },
+    { name: "Heartland Freight", rep: "S. Briggs", days: 19, trend: -14 },
+    { name: "Cornbelt Carriers", rep: "T. Nguyen", days: 13, trend: -9 },
+    { name: "River Road Transport", rep: "J. Harmon", days: 25, trend: -5 },
+    { name: "Quad Cities Fleet", rep: "S. Briggs", days: 9, trend: -8 },
+    { name: "Prairie State Hauling", rep: "T. Nguyen", days: 17, trend: -12 },
+  ],
+  "Grow a new territory": [
+    { name: "Clearwater Freight", rep: "T. Nguyen", days: 0, trend: 0 },
+    { name: "Cascade Logistics", rep: "S. Briggs", days: 0, trend: 0 },
+    { name: "Bluebell Carriers", rep: "J. Harmon", days: 0, trend: 0 },
+    { name: "Northern Star Transport", rep: "T. Nguyen", days: 0, trend: 0 },
+    { name: "Redwood Fleet Co.", rep: "S. Briggs", days: 0, trend: 0 },
+    { name: "Sunrise Hauling", rep: "J. Harmon", days: 0, trend: 0 },
+    { name: "Granite Peak Logistics", rep: "T. Nguyen", days: 0, trend: 0 },
+    { name: "Lakefront Carriers", rep: "S. Briggs", days: 0, trend: 0 },
+    { name: "Mesa Verde Transport", rep: "J. Harmon", days: 0, trend: 0 },
+    { name: "Tundra Freight Inc.", rep: "T. Nguyen", days: 0, trend: 0 },
+    { name: "Bayside Fleet Mgmt", rep: "S. Briggs", days: 0, trend: 0 },
+    { name: "Frontier Tire & Auto", rep: "J. Harmon", days: 0, trend: 0 },
+  ],
+  "Drive seasonal promotions": [
+    { name: "Central States Trucking", rep: "J. Harmon", days: 10, trend: 5 },
+    { name: "Hawkeye Equipment Rental", rep: "S. Briggs", days: 7, trend: 8 },
+    { name: "I-80 Fleet Services", rep: "T. Nguyen", days: 14, trend: 3 },
+    { name: "Metro Tire & Auto", rep: "J. Harmon", days: 4, trend: 11 },
+    { name: "Cornbelt Carriers", rep: "T. Nguyen", days: 21, trend: 6 },
+    { name: "River Road Transport", rep: "J. Harmon", days: 9, trend: 4 },
+    { name: "Quad Cities Fleet", rep: "S. Briggs", days: 16, trend: 9 },
+    { name: "Midwest Fleet & Tire Co.", rep: "J. Harmon", days: 5, trend: 13 },
+    { name: "Great Plains Logistics", rep: "S. Briggs", days: 18, trend: 7 },
+    { name: "Prairie State Hauling", rep: "T. Nguyen", days: 12, trend: 5 },
+    { name: "North Plains Trucking", rep: "J. Harmon", days: 23, trend: 2 },
+  ],
+  "Recover churned accounts": [
+    { name: "Stonegate Carriers", rep: "S. Briggs", days: 180, trend: -38 },
+    { name: "Vanguard Freight", rep: "T. Nguyen", days: 155, trend: -42 },
+    { name: "Keystone Logistics", rep: "J. Harmon", days: 210, trend: -29 },
+    { name: "Ironwood Transport", rep: "S. Briggs", days: 165, trend: -51 },
+    { name: "Copperhead Carriers", rep: "T. Nguyen", days: 190, trend: -35 },
+    { name: "Goldfield Fleet Co.", rep: "J. Harmon", days: 175, trend: -44 },
+    { name: "Silverton Hauling", rep: "S. Briggs", days: 145, trend: -27 },
+    { name: "Bronzewick Logistics", rep: "T. Nguyen", days: 220, trend: -58 },
+    { name: "Ashwood Freight", rep: "J. Harmon", days: 160, trend: -33 },
+    { name: "Elmwood Carriers", rep: "S. Briggs", days: 195, trend: -46 },
+    { name: "Maplewood Transport", rep: "T. Nguyen", days: 170, trend: -39 },
+    { name: "Cedarbrook Fleet", rep: "J. Harmon", days: 185, trend: -52 },
+  ],
+};
 
 const STAGE_ORDER: Stage[] = ["goal", "accounts", "cadence", "message", "label", "launch"];
 
@@ -181,6 +296,184 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
+// ─── Account Preview Modal ────────────────────────────────────────────────────
+
+const PAGE_SIZE = 8;
+
+function AccountPreviewModal({
+  open,
+  onClose,
+  suggestion,
+  search,
+  onSearch,
+  sortCol,
+  sortDir,
+  onSort,
+  page,
+  onPage,
+  onUse,
+}: {
+  open: boolean;
+  onClose: () => void;
+  suggestion: typeof ALL_SUGGESTIONS[0] | null;
+  search: string;
+  onSearch: (v: string) => void;
+  sortCol: "name" | "rep" | "days" | "trend";
+  sortDir: "asc" | "desc";
+  onSort: (col: "name" | "rep" | "days" | "trend") => void;
+  page: number;
+  onPage: (p: number) => void;
+  onUse: (label: string) => void;
+}) {
+  if (!open || !suggestion) return null;
+
+  const allRows = SUGGESTION_ACCOUNTS[suggestion.label] ?? [];
+  const filtered = allRows.filter(
+    (a) =>
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.rep.toLowerCase().includes(search.toLowerCase())
+  );
+  const sorted = [...filtered].sort((a, b) => {
+    const mult = sortDir === "asc" ? 1 : -1;
+    const av = a[sortCol];
+    const bv = b[sortCol];
+    return typeof av === "string"
+      ? av.localeCompare(bv as string) * mult
+      : ((av as number) - (bv as number)) * mult;
+  });
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const startIdx = sorted.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endIdx = Math.min(page * PAGE_SIZE, sorted.length);
+
+  const SortIcon = ({ col }: { col: "name" | "rep" | "days" | "trend" }) => {
+    if (col !== sortCol) return <span className="ml-1 text-gray-300">↕</span>;
+    return sortDir === "asc"
+      ? <CaretUp size={11} className="ml-1 inline text-blue-600" weight="bold" />
+      : <CaretDown size={11} className="ml-1 inline text-blue-600" weight="bold" />;
+  };
+
+  const thClass = "px-4 py-2.5 text-left text-xs font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700";
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/30 z-50" onClick={onClose} />
+      {/* Panel */}
+      <div className="fixed top-[4%] left-[8%] right-[8%] bottom-[4%] bg-white rounded-xl shadow-2xl z-50 flex flex-col">
+        {/* Header */}
+        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`${suggestion.bg} w-9 h-9 rounded-lg flex items-center justify-center shrink-0`}>
+              <suggestion.Icon size={18} className={suggestion.color} weight="fill" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 text-sm">{suggestion.label}</div>
+              <div className="text-xs text-gray-500">{allRows.length} accounts</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Controls bar */}
+        <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-3 shrink-0">
+          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 w-64">
+            <MagnifyingGlass size={14} className="text-gray-400 mr-2 shrink-0" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => onSearch(e.target.value)}
+              placeholder="Search accounts or reps..."
+              className="bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none w-full"
+            />
+          </div>
+          <div className="flex-1" />
+          <button
+            onClick={() => onUse(suggestion.label)}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+          >
+            Use this suggestion →
+          </button>
+        </div>
+
+        {/* Table */}
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-white border-b border-gray-200">
+              <tr>
+                <th className={thClass} onClick={() => onSort("name")}>
+                  Account Name <SortIcon col="name" />
+                </th>
+                <th className={thClass} onClick={() => onSort("rep")}>
+                  Rep <SortIcon col="rep" />
+                </th>
+                <th className={thClass} onClick={() => onSort("days")}>
+                  Days Since Visit <SortIcon col="days" />
+                </th>
+                <th className={thClass} onClick={() => onSort("trend")}>
+                  Revenue Trend <SortIcon col="trend" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((row, i) => (
+                <tr key={row.name} className={i % 2 === 1 ? "bg-gray-50" : ""}>
+                  <td className="px-4 py-2.5 font-medium text-gray-900">{row.name}</td>
+                  <td className="px-4 py-2.5 text-gray-600">{row.rep}</td>
+                  <td className="px-4 py-2.5 text-gray-600">{row.days}d</td>
+                  <td className="px-4 py-2.5">
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        row.trend < 0 ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {row.trend > 0 ? "+" : ""}{row.trend}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {pageRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">
+                    No accounts match your search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination bar */}
+        <div className="border-t border-gray-100 px-6 py-3 flex items-center justify-between shrink-0">
+          <span className="text-xs text-gray-500">
+            {sorted.length === 0
+              ? "No accounts"
+              : `Showing ${startIdx}–${endIdx} of ${sorted.length} accounts`}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onPage(page - 1)}
+              disabled={page <= 1}
+              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => onPage(page + 1)}
+              disabled={page >= totalPages}
+              className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Embedded Components ──────────────────────────────────────────────────────
 
 function AccountMatching({
@@ -255,10 +548,13 @@ function NudgeCadence({
     <div className="border border-gray-200 rounded-lg bg-white mt-3 w-full max-w-2xl overflow-hidden">
       <div className="divide-y divide-gray-100">
         {steps.map((s, i) => (
-          <button
+          <div
             key={s.title}
+            role="button"
+            tabIndex={0}
             onClick={() => onEdit(i)}
-            className={`w-full flex items-start gap-4 px-4 py-3 text-left transition-all hover:bg-gray-50 ${!enabled[i] ? "opacity-40" : ""}`}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(i); } }}
+            className={`w-full flex items-start gap-4 px-4 py-3 text-left transition-all hover:bg-gray-50 cursor-pointer ${!enabled[i] ? "opacity-40" : ""}`}
           >
             <div className="flex flex-col items-center pt-1 shrink-0">
               <div className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${enabled[i] ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"}`} />
@@ -277,7 +573,7 @@ function NudgeCadence({
             <span onClick={(e) => { e.stopPropagation(); onToggle(i); }}>
               <Toggle enabled={enabled[i]} onToggle={() => onToggle(i)} />
             </span>
-          </button>
+          </div>
         ))}
       </div>
     </div>
@@ -486,6 +782,13 @@ function Sidebar() {
   );
 }
 
+function pickSuggestions(exclude: typeof ALL_SUGGESTIONS = []): typeof ALL_SUGGESTIONS {
+  const excludeLabels = new Set(exclude.map((s) => s.label));
+  const pool = ALL_SUGGESTIONS.filter((s) => !excludeLabels.has(s.label));
+  const source = pool.length >= 3 ? pool : ALL_SUGGESTIONS;
+  return [...source].sort(() => Math.random() - 0.5).slice(0, 3);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PlaybookBuilder() {
@@ -495,6 +798,7 @@ export default function PlaybookBuilder() {
   const [loading, setLoading] = useState(false);
   const [launched, setLaunched] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [accounts, setAccounts] = useState([...ACCOUNTS]);
   const [cadenceDays, setCadenceDays] = useState(CADENCE_STEPS.map((s) => s.day));
@@ -506,12 +810,44 @@ export default function PlaybookBuilder() {
   const [playLabel, setPlayLabel] = useState("Retention — Q3 2026");
   const [playName, setPlayName] = useState("Revenue Protection Play");
 
-  // Dynamic suggestions
+  // Preview modal state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewSuggestion, setPreviewSuggestion] = useState<typeof ALL_SUGGESTIONS[0] | null>(null);
+  const [previewSearch, setPreviewSearch] = useState("");
+  const [previewSortCol, setPreviewSortCol] = useState<"name" | "rep" | "days" | "trend">("days");
+  const [previewSortDir, setPreviewSortDir] = useState<"asc" | "desc">("desc");
+  const [previewPage, setPreviewPage] = useState(1);
+
+  const openPreview = (s: typeof ALL_SUGGESTIONS[0]) => {
+    setPreviewSuggestion(s);
+    setPreviewSearch("");
+    setPreviewSortCol("days");
+    setPreviewSortDir("desc");
+    setPreviewPage(1);
+    setPreviewOpen(true);
+  };
+
+  const handlePreviewSort = (col: "name" | "rep" | "days" | "trend") => {
+    if (col === previewSortCol) setPreviewSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setPreviewSortCol(col); setPreviewSortDir("asc"); }
+    setPreviewPage(1);
+  };
+
+  // Dynamic suggestions — mounted flag ensures server/client render identical
+  // empty output during hydration; suggestions only appear after mount
+  const [mounted, setMounted] = useState(false);
   const [visibleSuggestions, setVisibleSuggestions] = useState<typeof ALL_SUGGESTIONS>([]);
+  const [refreshCount, setRefreshCount] = useState(0);
+
   useEffect(() => {
-    const shuffled = [...ALL_SUGGESTIONS].sort(() => Math.random() - 0.5);
-    setVisibleSuggestions(shuffled.slice(0, 3));
+    setVisibleSuggestions(pickSuggestions());
+    setMounted(true);
   }, []);
+
+  const refreshSuggestions = () => {
+    setRefreshCount((c) => c + 1);
+    setVisibleSuggestions((prev) => pickSuggestions(prev));
+  };
 
   // Criteria panel state
   const [criteriaOpen, setCriteriaOpen] = useState(false);
@@ -565,9 +901,10 @@ export default function PlaybookBuilder() {
     }
   };
 
-  const handleSubmitGoal = async () => {
-    if (!goalInput.trim() || loading) return;
-    const userText = goalInput.trim();
+  const submitGoal = (text: string) => {
+    if (!text.trim() || loading) return;
+    const userText = text.trim();
+    setGoalInput(userText);
     setMessages([{ role: "user", text: userText }]);
     setLoading(true);
 
@@ -578,6 +915,8 @@ export default function PlaybookBuilder() {
       setLoading(false);
     }, 800);
   };
+
+  const handleSubmitGoal = () => submitGoal(goalInput);
 
   const handleContinue = async () => {
     const currentIdx = STAGE_ORDER.indexOf(stage);
@@ -694,6 +1033,20 @@ export default function PlaybookBuilder() {
         </FieldRow>
       </SidePanel>
 
+      <AccountPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        suggestion={previewSuggestion}
+        search={previewSearch}
+        onSearch={(v) => { setPreviewSearch(v); setPreviewPage(1); }}
+        sortCol={previewSortCol}
+        sortDir={previewSortDir}
+        onSort={handlePreviewSort}
+        page={previewPage}
+        onPage={setPreviewPage}
+        onUse={(label) => { setPreviewOpen(false); submitGoal(label); }}
+      />
+
       {/* Nudge Edit Side Panel */}
       <SidePanel
         open={nudgeEditOpen}
@@ -765,6 +1118,7 @@ export default function PlaybookBuilder() {
                 <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-6">
                   <div className="relative">
                     <textarea
+                      ref={textareaRef}
                       value={goalInput}
                       onChange={(e) => setGoalInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -787,14 +1141,23 @@ export default function PlaybookBuilder() {
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-3">Or start with a suggestion:</p>
+                {mounted && <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-gray-600">Or start with a suggestion:</p>
+                    <button
+                      onClick={refreshSuggestions}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                    >
+                      <ArrowCounterClockwise size={13} />
+                      Refresh suggestions
+                    </button>
+                  </div>
                   <div className="grid grid-cols-3 gap-3">
                     {visibleSuggestions.map((s, idx) => (
-                      <button
-                        key={s.label}
+                      <div
+                        key={`${refreshCount}-${s.label}`}
                         onClick={() => setGoalInput(s.label)}
-                        className="animate-fade-slide-in bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
+                        className="animate-fade-slide-in bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-blue-300 hover:bg-blue-50/30 transition-colors flex flex-col cursor-pointer"
                         style={{ animationDelay: `${idx * 100}ms` }}
                       >
                         <div className={`${s.bg} w-10 h-10 rounded-lg flex items-center justify-center mb-3`}>
@@ -802,10 +1165,16 @@ export default function PlaybookBuilder() {
                         </div>
                         <div className="font-semibold text-gray-900 text-sm">{s.label}</div>
                         <div className="text-gray-500 text-xs mt-1">{s.sub}</div>
-                      </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openPreview(s); }}
+                          className="mt-3 text-blue-600 text-xs hover:underline self-start"
+                        >
+                          See accounts →
+                        </button>
+                      </div>
                     ))}
                   </div>
-                </div>
+                </div>}
               </div>
             </div>
           ) : (
