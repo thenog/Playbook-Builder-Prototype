@@ -51,6 +51,8 @@ interface Prototype {
   name: string;
   type: PrototypeType;
   Icon: ElementType;
+  slug: string;
+  filePath: string;
 }
 
 type Stage = "goal" | "accounts" | "cadence" | "message" | "label" | "launch";
@@ -823,9 +825,52 @@ function pickSuggestions(exclude: typeof ALL_SUGGESTIONS = []): typeof ALL_SUGGE
   return [...source].sort(() => Math.random() - 0.5).slice(0, 3);
 }
 
+// ─── Top Bar ──────────────────────────────────────────────────────────────────
+
+function TopBar({ onCreatePrototype }: { onCreatePrototype: (type: PrototypeType) => void }) {
+  const [newDropdownOpen, setNewDropdownOpen] = useState(false);
+  return (
+    <header className="flex items-center justify-between px-8 py-3.5 border-b border-gray-200 shrink-0 bg-white">
+      <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 w-80">
+        <MagnifyingGlass size={15} className="text-gray-400 mr-2 shrink-0" />
+        <span className="text-gray-400 text-sm">Search</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          <button
+            onClick={() => setNewDropdownOpen((v) => !v)}
+            className="border border-blue-600 text-blue-600 text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1.5"
+          >
+            New <CaretDown size={11} />
+          </button>
+          {newDropdownOpen && (
+            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+              <button
+                onClick={() => { setNewDropdownOpen(false); onCreatePrototype("desktop"); }}
+                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+              >
+                <Desktop size={15} className="shrink-0" /> Desktop Prototype
+              </button>
+              <button
+                onClick={() => { setNewDropdownOpen(false); onCreatePrototype("mobile"); }}
+                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+              >
+                <DeviceMobile size={15} className="shrink-0" /> Mobile Prototype
+              </button>
+            </div>
+          )}
+        </div>
+        <button className="text-gray-500 text-sm flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-gray-50 transition-colors">
+          Scott Miller <CaretDown size={11} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-function PlayBuilderView({ onCreatePrototype }: { onCreatePrototype: (type: PrototypeType) => void }) {
+function PlayBuilderView() {
   const [stage, setStage] = useState<Stage>("goal");
   const [goalInput, setGoalInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -833,7 +878,6 @@ function PlayBuilderView({ onCreatePrototype }: { onCreatePrototype: (type: Prot
   const [launched, setLaunched] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [newDropdownOpen, setNewDropdownOpen] = useState(false);
 
   const [accounts, setAccounts] = useState([...ACCOUNTS]);
   const [cadenceDays, setCadenceDays] = useState(CADENCE_STEPS.map((s) => s.day));
@@ -1118,43 +1162,6 @@ function PlayBuilderView({ onCreatePrototype }: { onCreatePrototype: (type: Prot
       </SidePanel>
 
       <div className="flex flex-col flex-1 min-w-0">
-        {/* Top bar */}
-        <header className="flex items-center justify-between px-8 py-3.5 border-b border-gray-200 shrink-0 bg-white">
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 w-80">
-            <MagnifyingGlass size={15} className="text-gray-400 mr-2 shrink-0" />
-            <span className="text-gray-400 text-sm">Search</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <button
-                onClick={() => setNewDropdownOpen((v) => !v)}
-                className="border border-blue-600 text-blue-600 text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1.5"
-              >
-                New <CaretDown size={11} />
-              </button>
-              {newDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
-                  <button
-                    onClick={() => { setNewDropdownOpen(false); onCreatePrototype("desktop"); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
-                  >
-                    <Desktop size={15} className="shrink-0" /> Desktop Prototype
-                  </button>
-                  <button
-                    onClick={() => { setNewDropdownOpen(false); onCreatePrototype("mobile"); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
-                  >
-                    <DeviceMobile size={15} className="shrink-0" /> Mobile Prototype
-                  </button>
-                </div>
-              )}
-            </div>
-            <button className="text-gray-500 text-sm flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-gray-50 transition-colors">
-              Scott Miller <CaretDown size={11} />
-            </button>
-          </div>
-        </header>
-
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {!isInChat ? (
@@ -1389,6 +1396,7 @@ function PrototypeCanvas({
       <div>
         <p className="text-sm font-medium text-gray-700">{prototype.name}</p>
         <p className="text-xs text-gray-400 mt-0.5">Start building your prototype</p>
+        <p className="text-xs text-gray-300 font-mono mt-2">{prototype.filePath}</p>
       </div>
     </div>
   );
@@ -1655,9 +1663,22 @@ export default function PlaybookBuilder() {
   const [activeId, setActiveId] = useState("plays");
   const [createModalType, setCreateModalType] = useState<PrototypeType | null>(null);
 
-  const handleConfirmCreate = (name: string, Icon: ElementType) => {
+  const handleConfirmCreate = async (name: string, Icon: ElementType) => {
     const id = `prototype-${Date.now()}`;
-    const newPrototype: Prototype = { id, name, type: createModalType!, Icon };
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    let filePath = `app/prototypes/${slug}.tsx`;
+    try {
+      const res = await fetch("/api/prototypes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, slug, type: createModalType }),
+      });
+      const data = await res.json();
+      filePath = data.filePath;
+    } catch {
+      // fall through with default filePath
+    }
+    const newPrototype: Prototype = { id, name, type: createModalType!, Icon, slug, filePath };
     setPrototypes((prev) => [...prev, newPrototype]);
     setActiveId(id);
     setCreateModalType(null);
@@ -1681,16 +1702,19 @@ export default function PlaybookBuilder() {
   return (
     <div className="flex h-screen overflow-hidden bg-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       <Sidebar prototypes={prototypes} activeId={activeId} onSelect={setActiveId} />
-      {activeId === "plays" ? (
-        <PlayBuilderView onCreatePrototype={(type) => setCreateModalType(type)} />
-      ) : activePrototype ? (
-        <PrototypeCanvas
-          prototype={activePrototype}
-          onRename={handleRename}
-          onChangeIcon={handleChangeIcon}
-          onDelete={handleDelete}
-        />
-      ) : null}
+      <div className="flex flex-col flex-1 min-w-0">
+        <TopBar onCreatePrototype={(type) => setCreateModalType(type)} />
+        {activeId === "plays" ? (
+          <PlayBuilderView />
+        ) : activePrototype ? (
+          <PrototypeCanvas
+            prototype={activePrototype}
+            onRename={handleRename}
+            onChangeIcon={handleChangeIcon}
+            onDelete={handleDelete}
+          />
+        ) : null}
+      </div>
       {createModalType && (
         <CreatePrototypeModal
           type={createModalType}
