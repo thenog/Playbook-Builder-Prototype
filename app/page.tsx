@@ -37,6 +37,9 @@ import {
   Users,
   Briefcase,
   Cube,
+  PencilSimple,
+  Trash,
+  DotsThree,
 } from "@phosphor-icons/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -745,15 +748,7 @@ function LaunchSummary({
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { id: "dashboard", label: "Dashboard", Icon: SquaresFour, href: "/dashboard" },
-  { id: "companies", label: "Companies", Icon: Buildings, href: "#" },
-  { id: "notes", label: "Notes", Icon: Note, href: "#" },
-  { id: "plays", label: "Plays", Icon: Play, href: "#" },
-  { id: "tasks", label: "Tasks", Icon: CheckSquare, href: "#" },
-  { id: "opportunities", label: "Opportunities", Icon: CurrencyDollar, href: "#" },
-  { id: "reports", label: "Reports", Icon: ChartBar, href: "#" },
-  { id: "promotions", label: "Promotions", Icon: Tag, href: "#" },
-  { id: "maps", label: "Maps", Icon: MapPin, href: "#" },
+  { id: "plays", label: "Plays", Icon: Play },
 ];
 
 function Sidebar({
@@ -1365,7 +1360,27 @@ function PlayBuilderView({ onCreatePrototype }: { onCreatePrototype: (type: Prot
 
 // ─── Prototype Canvas ─────────────────────────────────────────────────────────
 
-function PrototypeCanvas({ prototype }: { prototype: Prototype }) {
+function PrototypeCanvas({
+  prototype,
+  onRename,
+  onChangeIcon,
+  onDelete,
+}: {
+  prototype: Prototype;
+  onRename: (id: string, name: string) => void;
+  onChangeIcon: (id: string, Icon: ElementType) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [fabOpen, setFabOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [iconOpen, setIconOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(prototype.name);
+  const [selectedIcon, setSelectedIcon] = useState<ElementType>(() => prototype.Icon);
+
+  // Keep local state in sync if prototype changes externally
+  useEffect(() => { setRenameValue(prototype.name); }, [prototype.name]);
+  useEffect(() => { setSelectedIcon(() => prototype.Icon); }, [prototype.Icon]);
+
   const emptyState = (
     <div className="flex flex-col items-center justify-center gap-3 text-center">
       <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
@@ -1378,9 +1393,121 @@ function PrototypeCanvas({ prototype }: { prototype: Prototype }) {
     </div>
   );
 
+  const fab = (
+    <div className="absolute bottom-6 right-6 flex flex-col items-end gap-2">
+      {fabOpen && (
+        <div className="flex flex-col items-end gap-1.5 mb-1">
+          <button
+            onClick={() => { setFabOpen(false); setRenameValue(prototype.name); setRenameOpen(true); }}
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
+          >
+            <PencilSimple size={13} /> Rename
+          </button>
+          <button
+            onClick={() => { setFabOpen(false); setSelectedIcon(() => prototype.Icon); setIconOpen(true); }}
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
+          >
+            <Star size={13} /> Change Icon
+          </button>
+          <button
+            onClick={() => { setFabOpen(false); onDelete(prototype.id); }}
+            className="flex items-center gap-2 bg-white border border-red-200 text-red-600 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-red-50 transition-colors"
+          >
+            <Trash size={13} /> Delete
+          </button>
+        </div>
+      )}
+      <button
+        onClick={() => setFabOpen((v) => !v)}
+        className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-colors ${
+          fabOpen ? "bg-gray-800 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+        }`}
+      >
+        <DotsThree size={20} weight="bold" />
+      </button>
+    </div>
+  );
+
+  const renameModal = renameOpen && (
+    <>
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setRenameOpen(false)} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <span className="font-semibold text-gray-900 text-sm">Rename Prototype</span>
+            <button onClick={() => setRenameOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={15} /></button>
+          </div>
+          <div className="px-5 py-4">
+            <input
+              autoFocus
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && renameValue.trim()) {
+                  onRename(prototype.id, renameValue.trim());
+                  setRenameOpen(false);
+                }
+              }}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div className="px-5 pb-4 flex justify-end gap-2">
+            <button onClick={() => setRenameOpen(false)} className="text-sm px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Cancel</button>
+            <button
+              onClick={() => { if (renameValue.trim()) { onRename(prototype.id, renameValue.trim()); setRenameOpen(false); } }}
+              disabled={!renameValue.trim()}
+              className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >Save</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const iconModal = iconOpen && (
+    <>
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setIconOpen(false)} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <span className="font-semibold text-gray-900 text-sm">Change Icon</span>
+            <button onClick={() => setIconOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={15} /></button>
+          </div>
+          <div className="px-5 py-4">
+            <div className="grid grid-cols-4 gap-2">
+              {PICKER_ICONS.map(({ Icon, label }) => {
+                const active = selectedIcon === Icon;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => setSelectedIcon(() => Icon)}
+                    className={`flex items-center justify-center h-10 rounded-lg border transition-colors ${
+                      active ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                    title={label}
+                  >
+                    <Icon size={18} weight={active ? "fill" : "regular"} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="px-5 pb-4 flex justify-end gap-2">
+            <button onClick={() => setIconOpen(false)} className="text-sm px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Cancel</button>
+            <button
+              onClick={() => { onChangeIcon(prototype.id, selectedIcon); setIconOpen(false); }}
+              className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >Save</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   if (prototype.type === "mobile") {
     return (
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 relative">
         <div
           className="flex-1 overflow-y-auto flex items-center justify-center px-8 py-10"
           style={{
@@ -1401,12 +1528,15 @@ function PrototypeCanvas({ prototype }: { prototype: Prototype }) {
             {emptyState}
           </div>
         </div>
+        {fab}
+        {renameModal}
+        {iconModal}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col flex-1 min-w-0">
+    <div className="flex flex-col flex-1 min-w-0 relative">
       <div
         className="flex-1 overflow-y-auto flex items-center justify-center px-8 py-10"
         style={{
@@ -1416,6 +1546,9 @@ function PrototypeCanvas({ prototype }: { prototype: Prototype }) {
       >
         {emptyState}
       </div>
+      {fab}
+      {renameModal}
+      {iconModal}
     </div>
   );
 }
@@ -1530,6 +1663,19 @@ export default function PlaybookBuilder() {
     setCreateModalType(null);
   };
 
+  const handleRename = (id: string, name: string) => {
+    setPrototypes((prev) => prev.map((p) => p.id === id ? { ...p, name } : p));
+  };
+
+  const handleChangeIcon = (id: string, Icon: ElementType) => {
+    setPrototypes((prev) => prev.map((p) => p.id === id ? { ...p, Icon } : p));
+  };
+
+  const handleDelete = (id: string) => {
+    setPrototypes((prev) => prev.filter((p) => p.id !== id));
+    setActiveId("plays");
+  };
+
   const activePrototype = prototypes.find((p) => p.id === activeId);
 
   return (
@@ -1538,7 +1684,12 @@ export default function PlaybookBuilder() {
       {activeId === "plays" ? (
         <PlayBuilderView onCreatePrototype={(type) => setCreateModalType(type)} />
       ) : activePrototype ? (
-        <PrototypeCanvas prototype={activePrototype} />
+        <PrototypeCanvas
+          prototype={activePrototype}
+          onRename={handleRename}
+          onChangeIcon={handleChangeIcon}
+          onDelete={handleDelete}
+        />
       ) : null}
       {createModalType && (
         <CreatePrototypeModal
