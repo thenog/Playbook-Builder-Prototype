@@ -51,6 +51,7 @@ interface Prototype {
   name: string;
   type: PrototypeType;
   Icon: ElementType;
+  iconName: string;
   slug: string;
   filePath: string;
 }
@@ -1396,7 +1397,10 @@ function PrototypeCanvas({
       <div>
         <p className="text-sm font-medium text-gray-700">{prototype.name}</p>
         <p className="text-xs text-gray-400 mt-0.5">Start building your prototype</p>
-        <p className="text-xs text-gray-300 font-mono mt-2">{prototype.filePath}</p>
+        <div className="mt-3 flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-md px-2.5 py-1.5">
+          <span className="text-xs text-gray-400 shrink-0">File:</span>
+          <code className="text-xs text-gray-600 font-mono truncate">{prototype.filePath}</code>
+        </div>
       </div>
     </div>
   );
@@ -1574,6 +1578,33 @@ const PICKER_ICONS: { Icon: ElementType; label: string }[] = [
   { Icon: Cube, label: "Cube" },
 ];
 
+const ICON_MAP: Record<string, ElementType> = Object.fromEntries(
+  PICKER_ICONS.map(({ Icon, label }) => [label, Icon])
+);
+
+function getIconName(Icon: ElementType): string {
+  return PICKER_ICONS.find((p) => p.Icon === Icon)?.label ?? "Cube";
+}
+
+type StoredPrototype = Omit<Prototype, "Icon">;
+
+function loadPrototypes(): Prototype[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("voze-prototypes");
+    if (!raw) return [];
+    const stored: StoredPrototype[] = JSON.parse(raw);
+    return stored.map((p) => ({ ...p, Icon: ICON_MAP[p.iconName] ?? Cube }));
+  } catch {
+    return [];
+  }
+}
+
+function savePrototypes(prototypes: Prototype[]) {
+  const stored: StoredPrototype[] = prototypes.map(({ Icon: _icon, ...rest }) => rest);
+  localStorage.setItem("voze-prototypes", JSON.stringify(stored));
+}
+
 function CreatePrototypeModal({
   type,
   onConfirm,
@@ -1662,10 +1693,23 @@ export default function PlaybookBuilder() {
   const [prototypes, setPrototypes] = useState<Prototype[]>([]);
   const [activeId, setActiveId] = useState("plays");
   const [createModalType, setCreateModalType] = useState<PrototypeType | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Load from localStorage once on mount
+  useEffect(() => {
+    setPrototypes(loadPrototypes());
+    setHydrated(true);
+  }, []);
+
+  // Persist to localStorage whenever prototypes change (after hydration)
+  useEffect(() => {
+    if (hydrated) savePrototypes(prototypes);
+  }, [prototypes, hydrated]);
 
   const handleConfirmCreate = async (name: string, Icon: ElementType) => {
     const id = `prototype-${Date.now()}`;
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const iconName = getIconName(Icon);
     let filePath = `app/prototypes/${slug}.tsx`;
     try {
       const res = await fetch("/api/prototypes", {
@@ -1673,12 +1717,13 @@ export default function PlaybookBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, slug, type: createModalType }),
       });
+      if (!res.ok) throw new Error(`API ${res.status}`);
       const data = await res.json();
       filePath = data.filePath;
-    } catch {
-      // fall through with default filePath
+    } catch (err) {
+      console.error("[Prototypes] File creation failed:", err);
     }
-    const newPrototype: Prototype = { id, name, type: createModalType!, Icon, slug, filePath };
+    const newPrototype: Prototype = { id, name, type: createModalType!, Icon, iconName, slug, filePath };
     setPrototypes((prev) => [...prev, newPrototype]);
     setActiveId(id);
     setCreateModalType(null);
@@ -1689,7 +1734,8 @@ export default function PlaybookBuilder() {
   };
 
   const handleChangeIcon = (id: string, Icon: ElementType) => {
-    setPrototypes((prev) => prev.map((p) => p.id === id ? { ...p, Icon } : p));
+    const iconName = getIconName(Icon);
+    setPrototypes((prev) => prev.map((p) => p.id === id ? { ...p, Icon, iconName } : p));
   };
 
   const handleDelete = (id: string) => {
