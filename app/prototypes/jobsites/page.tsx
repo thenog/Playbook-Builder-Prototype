@@ -1,5 +1,9 @@
 "use client";
 
+// Prototype: Jobsites
+// Type: mobile
+// This prototype renders inside a 375×812 phone frame.
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   CaretLeft,
