@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, ElementType } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import {
   MagnifyingGlass,
   CaretDown,
@@ -861,9 +862,6 @@ function TopBar({ onCreatePrototype }: { onCreatePrototype: (type: PrototypeType
             </div>
           )}
         </div>
-        <button className="text-gray-500 text-sm flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-gray-50 transition-colors">
-          Scott Miller <CaretDown size={11} />
-        </button>
       </div>
     </header>
   );
@@ -1386,6 +1384,7 @@ function PrototypeCanvas({
   const [renameValue, setRenameValue] = useState(prototype.name);
   const [selectedIcon, setSelectedIcon] = useState<ElementType>(() => prototype.Icon);
   const [openingInCursor, setOpeningInCursor] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
 
   const handleOpenInCursor = async () => {
     setOpeningInCursor(true);
@@ -1439,6 +1438,12 @@ function PrototypeCanvas({
             className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
           >
             <Star size={13} /> Change Icon
+          </button>
+          <button
+            onClick={() => { setFabOpen(false); setIframeKey((k) => k + 1); }}
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
+          >
+            <ArrowCounterClockwise size={13} /> Restart
           </button>
           <button
             onClick={() => { setFabOpen(false); setDeleteConfirmOpen(true); }}
@@ -1588,6 +1593,7 @@ function PrototypeCanvas({
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-[#111827] rounded-b-2xl z-10" />
             <iframe
+              key={iframeKey}
               src={`/prototypes/${prototype.slug}`}
               className="w-full h-full border-0 bg-white"
               title={prototype.name}
@@ -1613,6 +1619,7 @@ function PrototypeCanvas({
         }}
       >
         <iframe
+          key={iframeKey}
           src={`/prototypes/${prototype.slug}`}
           className="w-full h-full border-0 bg-white"
           title={prototype.name}
@@ -1752,6 +1759,8 @@ function CreatePrototypeModal({
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 export default function PlaybookBuilder() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [prototypes, setPrototypes] = useState<Prototype[]>([]);
   const [activeId, setActiveId] = useState("plays");
   const [createModalType, setCreateModalType] = useState<PrototypeType | null>(null);
@@ -1789,6 +1798,11 @@ export default function PlaybookBuilder() {
       });
 
       setPrototypes(merged);
+      const slugFromPath = pathname === "/" ? null : pathname.slice(1);
+      if (slugFromPath) {
+        const match = merged.find((p) => p.slug === slugFromPath);
+        if (match) setActiveId(match.id);
+      }
       setHydrated(true);
     }
 
@@ -1799,6 +1813,16 @@ export default function PlaybookBuilder() {
   useEffect(() => {
     if (hydrated) savePrototypes(prototypes);
   }, [prototypes, hydrated]);
+
+  const handleSelect = (id: string) => {
+    setActiveId(id);
+    if (id === "plays") {
+      router.replace("/");
+    } else {
+      const proto = prototypes.find((p) => p.id === id);
+      if (proto) router.replace("/" + proto.slug);
+    }
+  };
 
   const handleConfirmCreate = async (name: string, Icon: ElementType) => {
     const id = `prototype-${Date.now()}`;
@@ -1820,6 +1844,7 @@ export default function PlaybookBuilder() {
     const newPrototype: Prototype = { id, name, type: createModalType!, Icon, iconName, slug, filePath };
     setPrototypes((prev) => [...prev, newPrototype]);
     setActiveId(id);
+    router.replace("/" + slug);
     setCreateModalType(null);
   };
 
@@ -1847,13 +1872,14 @@ export default function PlaybookBuilder() {
     }
     setPrototypes((prev) => prev.filter((p) => p.id !== id));
     setActiveId("plays");
+    router.replace("/");
   };
 
   const activePrototype = prototypes.find((p) => p.id === activeId);
 
   return (
     <div className="flex h-screen overflow-hidden bg-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      <Sidebar prototypes={prototypes} activeId={activeId} onSelect={setActiveId} />
+      <Sidebar prototypes={prototypes} activeId={activeId} onSelect={handleSelect} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopBar onCreatePrototype={(type) => setCreateModalType(type)} />
         {activeId === "plays" ? (
