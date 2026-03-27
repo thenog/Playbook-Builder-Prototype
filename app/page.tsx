@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, ElementType } from "react";
+import { useState, useRef, useEffect, useCallback, ElementType } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -41,6 +41,9 @@ import {
   PencilSimple,
   Trash,
   DotsThree,
+  FloppyDisk,
+  NotePencil,
+  ClockCounterClockwise,
 } from "@phosphor-icons/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1386,6 +1389,16 @@ function PrototypeCanvas({
   const [openingInCursor, setOpeningInCursor] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
 
+  // Notes
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notesContent, setNotesContent] = useState("");
+  const [notesSaved, setNotesSaved] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Versions
+  const [versions, setVersions] = useState<{ label: string; file: string }[]>([]);
+  const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+
   const handleOpenInCursor = async () => {
     setOpeningInCursor(true);
     try {
@@ -1408,6 +1421,65 @@ function PrototypeCanvas({
   // Keep local state in sync if prototype changes externally
   useEffect(() => { setRenameValue(prototype.name); }, [prototype.name]);
   useEffect(() => { setSelectedIcon(() => prototype.Icon); }, [prototype.Icon]);
+
+  // Load notes on prototype change
+  useEffect(() => {
+    setNotesContent("");
+    fetch(`/api/prototypes/notes?slug=${prototype.slug}`)
+      .then((r) => r.json())
+      .then((d) => setNotesContent(d.content ?? ""))
+      .catch(() => {});
+  }, [prototype.slug]);
+
+  // Load versions on prototype change
+  useEffect(() => {
+    setVersions([]);
+    fetch(`/api/prototypes/versions?slug=${prototype.slug}`)
+      .then((r) => r.json())
+      .then((v) => Array.isArray(v) ? setVersions(v) : setVersions([]))
+      .catch(() => {});
+  }, [prototype.slug]);
+
+  const handleNotesChange = useCallback((value: string) => {
+    setNotesContent(value);
+    setNotesSaved(false);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch("/api/prototypes/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: prototype.slug, content: value }),
+        });
+        setNotesSaved(true);
+        setTimeout(() => setNotesSaved(false), 2000);
+      } catch {}
+    }, 600);
+  }, [prototype.slug]);
+
+  const handleSaveVersion = useCallback(async () => {
+    try {
+      const res = await fetch("/api/prototypes/versions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: prototype.slug }),
+      });
+      const data = await res.json();
+      if (data.label) setVersions((prev) => [...prev, { label: data.label, file: data.file }]);
+    } catch {}
+  }, [prototype.slug]);
+
+  const handleRestoreVersion = useCallback(async (version: string) => {
+    try {
+      await fetch("/api/prototypes/versions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: prototype.slug, version }),
+      });
+      setRestoreTarget(null);
+      setIframeKey((k) => k + 1);
+    } catch {}
+  }, [prototype.slug]);
 
   const fileChip = (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-md px-2.5 py-1.5">
@@ -1432,6 +1504,18 @@ function PrototypeCanvas({
             className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
           >
             <PencilSimple size={13} /> Rename
+          </button>
+          <button
+            onClick={() => { setFabOpen(false); setNotesOpen(true); }}
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
+          >
+            <NotePencil size={13} /> Notes
+          </button>
+          <button
+            onClick={() => { setFabOpen(false); handleSaveVersion(); }}
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
+          >
+            <FloppyDisk size={13} /> Save Version
           </button>
           <button
             onClick={() => { setFabOpen(false); setSelectedIcon(() => prototype.Icon); setIconOpen(true); }}
@@ -1572,9 +1656,88 @@ function PrototypeCanvas({
     </>
   );
 
+  const notesPanel = notesOpen && (
+    <>
+      <div className="fixed inset-0 z-30" onClick={() => setNotesOpen(false)} />
+      <div className="fixed top-0 right-0 h-full w-80 bg-[#0F172A] z-40 flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-700">
+          <div className="flex items-center gap-2 text-white text-sm font-medium">
+            <NotePencil size={14} />
+            <span>{prototype.name} — Notes</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {notesSaved && <span className="text-xs text-emerald-400">Saved</span>}
+            <button onClick={() => setNotesOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+        <textarea
+          value={notesContent}
+          onChange={(e) => handleNotesChange(e.target.value)}
+          placeholder={`# ${prototype.name}\n\n**Goal**: What is this prototype for?\n\n**Key decisions**\n- \n\n**Open questions**\n- `}
+          className="flex-1 bg-transparent text-slate-300 text-xs font-mono leading-relaxed p-4 resize-none focus:outline-none placeholder-slate-600"
+          spellCheck={false}
+        />
+        <div className="px-4 py-2 border-t border-slate-700">
+          <p className="text-xs text-slate-500">Auto-saved · visible to Claude as <code className="text-slate-400">prototype.md</code></p>
+        </div>
+      </div>
+    </>
+  );
+
+  const restoreModal = restoreTarget && (
+    <>
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setRestoreTarget(null)} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden">
+          <div className="px-5 pt-5 pb-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-50 mb-3">
+              <ClockCounterClockwise size={18} className="text-blue-500" />
+            </div>
+            <p className="font-semibold text-gray-900 text-sm mb-1">Restore {restoreTarget}?</p>
+            <p className="text-xs text-gray-500">This replaces the live version with {restoreTarget}. Consider saving a version first to preserve current work.</p>
+          </div>
+          <div className="px-5 pb-5 pt-2 flex gap-2">
+            <button
+              onClick={() => setRestoreTarget(null)}
+              className="flex-1 text-sm px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleRestoreVersion(restoreTarget)}
+              className="flex-1 text-sm px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
+            >
+              Restore
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const versionStrip = versions.length > 0 && (
+    <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 bg-white shrink-0">
+      <ClockCounterClockwise size={12} className="text-gray-400 shrink-0" />
+      <span className="text-xs text-gray-400 mr-0.5">Versions:</span>
+      {versions.map((v) => (
+        <button
+          key={v.label}
+          onClick={() => setRestoreTarget(v.label)}
+          className="text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors font-mono"
+        >
+          {v.label}
+        </button>
+      ))}
+      <span className="text-xs text-gray-300 ml-0.5">· live</span>
+    </div>
+  );
+
   if (prototype.type === "mobile") {
     return (
       <div className="flex flex-col flex-1 min-w-0 relative">
+        {versionStrip}
         <div
           className="flex-1 overflow-y-auto flex items-center justify-center px-8 py-10"
           style={{
@@ -1605,12 +1768,15 @@ function PrototypeCanvas({
         {renameModal}
         {iconModal}
         {deleteModal}
+        {notesPanel}
+        {restoreModal}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col flex-1 min-w-0 relative">
+      {versionStrip}
       <div
         className="flex-1 relative"
         style={{
@@ -1630,6 +1796,8 @@ function PrototypeCanvas({
       {renameModal}
       {iconModal}
       {deleteModal}
+      {notesPanel}
+      {restoreModal}
     </div>
   );
 }

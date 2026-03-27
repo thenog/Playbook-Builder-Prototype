@@ -97,6 +97,8 @@ export async function POST(req: NextRequest) {
     .map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))
     .join("");
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const mobileNote = type === "mobile"
     ? `// This prototype renders inside a 375×812 phone frame.
 // Design for mobile — full width, start content below the notch (~28px from top).
@@ -108,6 +110,8 @@ export async function POST(req: NextRequest) {
 
 // Prototype: ${name}
 // Type: ${type}
+// Status: in-progress
+// Created: ${today}
 ${mobileNote}
 export default function ${componentName}() {
   return (
@@ -120,6 +124,9 @@ export default function ${componentName}() {
 
   const filePath = `app/prototypes/${slug}/page.tsx`;
   await writeFile(path.join(process.cwd(), filePath), content);
+
+  const notesContent = `# ${name}\n\n**Goal**: [Describe what this prototype is for]\n\n**Key decisions**\n- \n\n**Status**: in-progress\n\n**Open questions**\n- \n`;
+  await writeFile(path.join(dir, "prototype.md"), notesContent);
 
   return NextResponse.json({ filePath });
 }

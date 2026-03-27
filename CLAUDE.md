@@ -37,4 +37,37 @@ The shell (`app/page.tsx`) handles the sidebar, New button, FAB (rename/delete/i
 - Use Tailwind CSS for all styling
 - Import only from `react`, `@phosphor-icons/react`, or other packages already in `package.json`
 - Keep the component as a single default export
-- Do not create new files inside `app/prototypes/[slug]/` — only edit `page.tsx`
+- The only files you may touch inside `app/prototypes/[slug]/` are `page.tsx` and `prototype.md`
+
+## Before building or editing a prototype
+
+1. Read `app/prototypes/[slug]/prototype.md` — it describes the goal, key decisions, and open questions
+2. Read the comment header at the top of `page.tsx` for type and status
+3. If the user asks for a significant redesign or new direction, offer to save a version first:
+   - POST `/api/prototypes/versions` with `{ slug }` — snapshots current `page.tsx` as `v1.tsx`, `v2.tsx`, etc.
+
+## Versioning
+
+Each prototype directory may contain named version snapshots alongside `page.tsx`:
+```
+app/prototypes/[slug]/
+  page.tsx        ← always the live/editable version
+  v1.tsx          ← saved snapshots (read-only unless restoring)
+  v2.tsx
+  prototype.md    ← goal, decisions, notes for this prototype
+```
+
+- **Save a version**: POST `/api/prototypes/versions` `{ slug }` → creates next `vN.tsx`
+- **Restore a version**: PUT `/api/prototypes/versions` `{ slug, version: "v1" }` → overwrites `page.tsx`
+- **List versions**: GET `/api/prototypes/versions?slug=...`
+- The shell's version strip shows saved snapshots; clicking one prompts to restore
+
+## Notes (prototype.md)
+
+Each prototype has a `prototype.md` file. Read it before making changes. You may update it when:
+- The goal or status changes
+- A key decision is made worth recording
+- An open question gets resolved
+
+- **Read notes**: GET `/api/prototypes/notes?slug=...`
+- **Write notes**: POST `/api/prototypes/notes` `{ slug, content }`
