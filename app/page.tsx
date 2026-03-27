@@ -1382,17 +1382,45 @@ function PrototypeCanvas({
   const [fabOpen, setFabOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [iconOpen, setIconOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [renameValue, setRenameValue] = useState(prototype.name);
   const [selectedIcon, setSelectedIcon] = useState<ElementType>(() => prototype.Icon);
+  const [openingInCursor, setOpeningInCursor] = useState(false);
+
+  const handleOpenInCursor = async () => {
+    setOpeningInCursor(true);
+    try {
+      const res = await fetch("/api/open-in-editor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePath: prototype.filePath }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error("[Open in Cursor]", data.error);
+      }
+    } catch (err) {
+      console.error("[Open in Cursor] fetch failed:", err);
+    } finally {
+      setOpeningInCursor(false);
+    }
+  };
 
   // Keep local state in sync if prototype changes externally
   useEffect(() => { setRenameValue(prototype.name); }, [prototype.name]);
   useEffect(() => { setSelectedIcon(() => prototype.Icon); }, [prototype.Icon]);
 
   const fileChip = (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-md px-2.5 py-1.5 pointer-events-none">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-md px-2.5 py-1.5">
       <span className="text-xs text-white/60 shrink-0">File:</span>
       <code className="text-xs text-white font-mono whitespace-nowrap">{prototype.filePath}</code>
+      <button
+        onClick={handleOpenInCursor}
+        disabled={openingInCursor}
+        className="ml-1 text-xs text-white/60 hover:text-white border border-white/20 hover:border-white/40 rounded px-2 py-0.5 transition-colors disabled:opacity-50"
+      >
+        {openingInCursor ? "Opening…" : "Open in Cursor"}
+      </button>
     </div>
   );
 
@@ -1413,7 +1441,7 @@ function PrototypeCanvas({
             <Star size={13} /> Change Icon
           </button>
           <button
-            onClick={() => { setFabOpen(false); onDelete(prototype.id); }}
+            onClick={() => { setFabOpen(false); setDeleteConfirmOpen(true); }}
             className="flex items-center gap-2 bg-white border border-red-200 text-red-600 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-red-50 transition-colors"
           >
             <Trash size={13} /> Delete
@@ -1508,6 +1536,37 @@ function PrototypeCanvas({
     </>
   );
 
+  const deleteModal = deleteConfirmOpen && (
+    <>
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setDeleteConfirmOpen(false)} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden">
+          <div className="px-5 pt-5 pb-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-50 mb-3">
+              <Trash size={18} className="text-red-500" />
+            </div>
+            <p className="font-semibold text-gray-900 text-sm mb-1">Delete "{prototype.name}"?</p>
+            <p className="text-xs text-gray-500">This will permanently delete the prototype file from disk. This cannot be undone.</p>
+          </div>
+          <div className="px-5 pb-5 pt-2 flex gap-2">
+            <button
+              onClick={() => setDeleteConfirmOpen(false)}
+              className="flex-1 text-sm px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { setDeleteConfirmOpen(false); onDelete(prototype.id); }}
+              className="flex-1 text-sm px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   if (prototype.type === "mobile") {
     return (
       <div className="flex flex-col flex-1 min-w-0 relative">
@@ -1539,6 +1598,7 @@ function PrototypeCanvas({
         {fab}
         {renameModal}
         {iconModal}
+        {deleteModal}
       </div>
     );
   }
@@ -1562,6 +1622,7 @@ function PrototypeCanvas({
       {fab}
       {renameModal}
       {iconModal}
+      {deleteModal}
     </div>
   );
 }
@@ -1696,10 +1757,42 @@ export default function PlaybookBuilder() {
   const [createModalType, setCreateModalType] = useState<PrototypeType | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  // Load from localStorage once on mount
+  // Load from localStorage and sync with filesystem on mount
   useEffect(() => {
-    setPrototypes(loadPrototypes());
-    setHydrated(true);
+    async function syncPrototypes() {
+      const local = loadPrototypes();
+
+      let diskEntries: { slug: string; filePath: string; type: "mobile" | "desktop"; name: string }[] = [];
+      try {
+        const res = await fetch("/api/prototypes");
+        if (res.ok) diskEntries = await res.json();
+      } catch (err) {
+        console.error("[Prototypes] Disk sync failed:", err);
+      }
+
+      const localBySlug = new Map(local.map((p) => [p.slug, p]));
+
+      const merged: Prototype[] = diskEntries.map((diskEntry) => {
+        const existing = localBySlug.get(diskEntry.slug);
+        if (existing) {
+          return { ...existing, filePath: diskEntry.filePath };
+        }
+        return {
+          id: `prototype-disk-${diskEntry.slug}`,
+          name: diskEntry.name,
+          type: diskEntry.type,
+          Icon: Cube,
+          iconName: "Cube",
+          slug: diskEntry.slug,
+          filePath: diskEntry.filePath,
+        };
+      });
+
+      setPrototypes(merged);
+      setHydrated(true);
+    }
+
+    syncPrototypes();
   }, []);
 
   // Persist to localStorage whenever prototypes change (after hydration)
@@ -1711,7 +1804,7 @@ export default function PlaybookBuilder() {
     const id = `prototype-${Date.now()}`;
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const iconName = getIconName(Icon);
-    let filePath = `app/prototypes/${slug}.tsx`;
+    let filePath = `app/prototypes/${slug}/page.tsx`;
     try {
       const res = await fetch("/api/prototypes", {
         method: "POST",
@@ -1739,7 +1832,19 @@ export default function PlaybookBuilder() {
     setPrototypes((prev) => prev.map((p) => p.id === id ? { ...p, Icon, iconName } : p));
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    const proto = prototypes.find((p) => p.id === id);
+    if (proto) {
+      try {
+        await fetch("/api/prototypes", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: proto.slug }),
+        });
+      } catch (err) {
+        console.error("[Prototypes] Delete API failed:", err);
+      }
+    }
     setPrototypes((prev) => prev.filter((p) => p.id !== id));
     setActiveId("plays");
   };
