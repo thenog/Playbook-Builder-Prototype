@@ -1396,7 +1396,8 @@ function PrototypeCanvas({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Versions
-  const [versions, setVersions] = useState<{ label: string; file: string }[]>([]);
+  const [versions, setVersions] = useState<{ label: string }[]>([]);
+  const [activeVersion, setActiveVersion] = useState<"live" | string>("live");
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
 
   const handleOpenInCursor = async () => {
@@ -1431,9 +1432,10 @@ function PrototypeCanvas({
       .catch(() => {});
   }, [prototype.slug]);
 
-  // Load versions on prototype change
+  // Load versions on prototype change, reset active tab to live
   useEffect(() => {
     setVersions([]);
+    setActiveVersion("live");
     fetch(`/api/prototypes/versions?slug=${prototype.slug}`)
       .then((r) => r.json())
       .then((v) => Array.isArray(v) ? setVersions(v) : setVersions([]))
@@ -1465,7 +1467,7 @@ function PrototypeCanvas({
         body: JSON.stringify({ slug: prototype.slug }),
       });
       const data = await res.json();
-      if (data.label) setVersions((prev) => [...prev, { label: data.label, file: data.file }]);
+      if (data.label) setVersions((prev) => [...prev, { label: data.label }]);
     } catch {}
   }, [prototype.slug]);
 
@@ -1477,6 +1479,7 @@ function PrototypeCanvas({
         body: JSON.stringify({ slug: prototype.slug, version }),
       });
       setRestoreTarget(null);
+      setActiveVersion("live");
       setIframeKey((k) => k + 1);
     } catch {}
   }, [prototype.slug]);
@@ -1718,19 +1721,39 @@ function PrototypeCanvas({
   );
 
   const versionStrip = versions.length > 0 && (
-    <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 bg-white shrink-0">
-      <ClockCounterClockwise size={12} className="text-gray-400 shrink-0" />
-      <span className="text-xs text-gray-400 mr-0.5">Versions:</span>
+    <div className="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-white shrink-0">
+      <ClockCounterClockwise size={12} className="text-gray-400 shrink-0 mr-0.5" />
       {versions.map((v) => (
         <button
           key={v.label}
-          onClick={() => setRestoreTarget(v.label)}
-          className="text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors font-mono"
+          onClick={() => setActiveVersion(v.label)}
+          className={`text-xs px-2 py-0.5 rounded border font-mono transition-colors ${
+            activeVersion === v.label
+              ? "border-blue-500 bg-blue-50 text-blue-600 font-medium"
+              : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
+          }`}
         >
           {v.label}
         </button>
       ))}
-      <span className="text-xs text-gray-300 ml-0.5">· live</span>
+      <button
+        onClick={() => setActiveVersion("live")}
+        className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+          activeVersion === "live"
+            ? "border-blue-500 bg-blue-50 text-blue-600 font-medium"
+            : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
+        }`}
+      >
+        live
+      </button>
+      {activeVersion !== "live" && (
+        <button
+          onClick={() => setRestoreTarget(activeVersion)}
+          className="ml-2 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+        >
+          → restore to live
+        </button>
+      )}
     </div>
   );
 
@@ -1756,8 +1779,8 @@ function PrototypeCanvas({
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-[#111827] rounded-b-2xl z-10" />
             <iframe
-              key={iframeKey}
-              src={`/prototypes/${prototype.slug}`}
+              key={`${iframeKey}-${activeVersion}`}
+              src={activeVersion === "live" ? `/prototypes/${prototype.slug}` : `/prototypes/${prototype.slug}/${activeVersion}`}
               className="w-full h-full border-0 bg-white"
               title={prototype.name}
             />
@@ -1785,8 +1808,8 @@ function PrototypeCanvas({
         }}
       >
         <iframe
-          key={iframeKey}
-          src={`/prototypes/${prototype.slug}`}
+          key={`${iframeKey}-${activeVersion}`}
+          src={activeVersion === "live" ? `/prototypes/${prototype.slug}` : `/prototypes/${prototype.slug}/${activeVersion}`}
           className="w-full h-full border-0 bg-white"
           title={prototype.name}
         />

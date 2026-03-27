@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, writeFile, readdir } from "fs/promises";
+import { readFile, writeFile, readdir, mkdir, stat } from "fs/promises";
 import path from "path";
 
 function validSlug(slug: unknown): slug is string {
   return typeof slug === "string" && slug.length > 0 && !slug.includes("..") && !slug.includes("/");
 }
 
-function parseVersionNum(filename: string): number {
-  const m = filename.match(/^v(\d+)\.tsx$/);
+function parseVersionNum(name: string): number {
+  const m = name.match(/^v(\d+)$/);
   return m ? parseInt(m[1], 10) : -1;
 }
 
 // GET /api/prototypes/versions?slug=jobsites
-// Returns: [{ label: "v1", file: "v1.tsx" }, ...]
+// Returns: [{ label: "v1" }, ...]  (versions stored as subdirs vN/page.tsx)
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");
   if (!validSlug(slug)) return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
@@ -20,11 +20,15 @@ export async function GET(req: NextRequest) {
   const dir = path.join(process.cwd(), "app", "prototypes", slug);
   try {
     const entries = await readdir(dir);
-    const versions = entries
-      .filter((e) => /^v\d+\.tsx$/.test(e))
-      .map((e) => ({ label: e.replace(".tsx", ""), file: e, num: parseVersionNum(e) }))
-      .sort((a, b) => a.num - b.num)
-      .map(({ label, file }) => ({ label, file }));
+    const versions: { label: string }[] = [];
+    for (const entry of entries) {
+      if (!/^v\d+$/.test(entry)) continue;
+      try {
+        await stat(path.join(dir, entry, "page.tsx"));
+        versions.push({ label: entry });
+      } catch { /* no page.tsx inside, skip */ }
+    }
+    versions.sort((a, b) => parseVersionNum(a.label) - parseVersionNum(b.label));
     return NextResponse.json(versions);
   } catch {
     return NextResponse.json([]);
@@ -32,7 +36,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/prototypes/versions { slug }
-// Saves current page.tsx as next vN.tsx
+// Saves current page.tsx as next vN/page.tsx
 export async function POST(req: NextRequest) {
   const { slug } = await req.json();
   if (!validSlug(slug)) return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
@@ -45,21 +49,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Prototype not found" }, { status: 404 });
   }
 
-  const existing = entries.filter((e) => /^v\d+\.tsx$/.test(e));
-  const nextNum =
-    existing.length > 0
-      ? Math.max(...existing.map(parseVersionNum)) + 1
-      : 1;
+  const existingNums = entries
+    .filter((e) => /^v\d+$/.test(e))
+    .map(parseVersionNum)
+    .filter((n) => n > 0);
+
+  const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
   const label = `v${nextNum}`;
 
   const content = await readFile(path.join(dir, "page.tsx"), "utf-8");
-  await writeFile(path.join(dir, `${label}.tsx`), content);
+  const versionDir = path.join(dir, label);
+  await mkdir(versionDir, { recursive: true });
+  await writeFile(path.join(versionDir, "page.tsx"), content);
 
-  return NextResponse.json({ label, file: `${label}.tsx` });
+  return NextResponse.json({ label });
 }
 
 // PUT /api/prototypes/versions { slug, version: "v1" }
-// Restores vN.tsx as page.tsx
+// Restores vN/page.tsx as the live page.tsx
 export async function PUT(req: NextRequest) {
   const { slug, version } = await req.json();
   if (!validSlug(slug)) return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
@@ -68,7 +75,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const dir = path.join(process.cwd(), "app", "prototypes", slug);
-  const content = await readFile(path.join(dir, `${version}.tsx`), "utf-8");
+  const content = await readFile(path.join(dir, version, "page.tsx"), "utf-8");
   await writeFile(path.join(dir, "page.tsx"), content);
 
   return NextResponse.json({ ok: true });
