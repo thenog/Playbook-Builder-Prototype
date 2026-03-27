@@ -1396,6 +1396,8 @@ function PrototypeCanvas({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Versions
+  const router = useRouter();
+  const pathname = usePathname();
   const [versions, setVersions] = useState<{ label: string; name: string }[]>([]);
   const [activeVersion, setActiveVersion] = useState<"live" | string>("live");
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
@@ -1434,10 +1436,12 @@ function PrototypeCanvas({
       .catch(() => {});
   }, [prototype.slug]);
 
-  // Load versions on prototype change, reset active tab to live
+  // Load versions on prototype change; restore active version from URL if present
   useEffect(() => {
     setVersions([]);
-    setActiveVersion("live");
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const vInPath = parts[1] && /^v\d+$/.test(parts[1]) ? parts[1] : "live";
+    setActiveVersion(vInPath);
     fetch(`/api/prototypes/versions?slug=${prototype.slug}`)
       .then((r) => r.json())
       .then((v) => Array.isArray(v) ? setVersions(v) : setVersions([]))
@@ -1487,6 +1491,34 @@ function PrototypeCanvas({
     setRenamingVersion(null);
   }, [prototype.slug]);
 
+  const handleSetActiveVersion = useCallback((v: string) => {
+    setActiveVersion(v);
+    if (v === "live") {
+      router.replace(`/${prototype.slug}`);
+    } else {
+      router.replace(`/${prototype.slug}/${v}`);
+    }
+  }, [prototype.slug, router]);
+
+  const handleDeleteVersion = useCallback(async (label: string) => {
+    try {
+      await fetch("/api/prototypes/versions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: prototype.slug, version: label }),
+      });
+      setVersions((prev) => prev.filter((v) => v.label !== label));
+      // If we were viewing the deleted version, go back to live
+      setActiveVersion((cur) => {
+        if (cur === label) {
+          router.replace(`/${prototype.slug}`);
+          return "live";
+        }
+        return cur;
+      });
+    } catch {}
+  }, [prototype.slug, router]);
+
   const handleRestoreVersion = useCallback(async (version: string) => {
     try {
       await fetch("/api/prototypes/versions", {
@@ -1495,10 +1527,10 @@ function PrototypeCanvas({
         body: JSON.stringify({ slug: prototype.slug, version }),
       });
       setRestoreTarget(null);
-      setActiveVersion("live");
+      handleSetActiveVersion("live");
       setIframeKey((k) => k + 1);
     } catch {}
-  }, [prototype.slug]);
+  }, [prototype.slug, handleSetActiveVersion]);
 
   const fileChip = (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-md px-2.5 py-1.5">
@@ -1734,7 +1766,7 @@ function PrototypeCanvas({
     <div className="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-white shrink-0">
       <ClockCounterClockwise size={12} className="text-gray-400 shrink-0 mr-0.5" />
       {versions.map((v) => (
-        <div key={v.label} className="relative">
+        <div key={v.label} className="relative group/chip">
           {renamingVersion === v.label ? (
             <input
               autoFocus
@@ -1750,10 +1782,10 @@ function PrototypeCanvas({
             />
           ) : (
             <button
-              onClick={() => setActiveVersion(v.label)}
+              onClick={() => handleSetActiveVersion(v.label)}
               onDoubleClick={() => { setRenamingVersion(v.label); setRenameVersionValue(v.name); }}
               title="Double-click to rename"
-              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+              className={`text-xs px-2 py-0.5 rounded border transition-colors pr-3 ${
                 activeVersion === v.label
                   ? "border-blue-500 bg-blue-50 text-blue-600 font-medium"
                   : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
@@ -1762,10 +1794,19 @@ function PrototypeCanvas({
               {v.name}
             </button>
           )}
+          {renamingVersion !== v.label && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleDeleteVersion(v.label); }}
+              title="Delete version"
+              className="absolute top-0 right-0 bottom-0 flex items-center justify-center w-4 opacity-0 group-hover/chip:opacity-100 text-gray-300 hover:text-red-400 transition-all rounded-r"
+            >
+              <X size={8} weight="bold" />
+            </button>
+          )}
         </div>
       ))}
       <button
-        onClick={() => setActiveVersion("live")}
+        onClick={() => handleSetActiveVersion("live")}
         className={`text-xs px-2 py-0.5 rounded border transition-colors ${
           activeVersion === "live"
             ? "border-blue-500 bg-blue-50 text-blue-600 font-medium"
@@ -1774,14 +1815,6 @@ function PrototypeCanvas({
       >
         live
       </button>
-      {activeVersion !== "live" && (
-        <button
-          onClick={() => setRestoreTarget(activeVersion)}
-          className="ml-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
-        >
-          → restore to live
-        </button>
-      )}
       <button
         onClick={handleSaveVersion}
         title="Save current as new version"
@@ -2024,7 +2057,7 @@ export default function PlaybookBuilder() {
       });
 
       setPrototypes(merged);
-      const slugFromPath = pathname === "/" ? null : pathname.slice(1);
+      const slugFromPath = pathname === "/" ? null : pathname.split("/").filter(Boolean)[0] ?? null;
       if (slugFromPath) {
         const match = merged.find((p) => p.slug === slugFromPath);
         if (match) setActiveId(match.id);

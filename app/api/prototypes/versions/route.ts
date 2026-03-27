@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, writeFile, readdir, mkdir, stat } from "fs/promises";
+import { readFile, writeFile, readdir, mkdir, stat, rm } from "fs/promises";
 import path from "path";
 
 function validSlug(slug: unknown): slug is string {
@@ -95,6 +95,28 @@ export async function PATCH(req: NextRequest) {
   const labels = await readLabels(dir);
   labels[version] = name.trim();
   await writeLabels(dir, labels);
+
+  return NextResponse.json({ ok: true });
+}
+
+// DELETE /api/prototypes/versions { slug, version: "v1" }
+// Removes a version snapshot directory and cleans up its label
+export async function DELETE(req: NextRequest) {
+  const { slug, version } = await req.json();
+  if (!validSlug(slug)) return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
+  if (typeof version !== "string" || !/^v\d+$/.test(version)) {
+    return NextResponse.json({ error: "Invalid version" }, { status: 400 });
+  }
+
+  const dir = path.join(process.cwd(), "app", "prototypes", slug);
+  await rm(path.join(dir, version), { recursive: true, force: true });
+
+  // Remove from labels if present
+  const labels = await readLabels(dir);
+  if (labels[version]) {
+    delete labels[version];
+    await writeLabels(dir, labels);
+  }
 
   return NextResponse.json({ ok: true });
 }
