@@ -1400,7 +1400,6 @@ function PrototypeCanvas({
   const pathname = usePathname();
   const [versions, setVersions] = useState<{ label: string; name: string }[]>([]);
   const [activeVersion, setActiveVersion] = useState<"live" | string>("live");
-  const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
   const [renamingVersion, setRenamingVersion] = useState<string | null>(null);
   const [renameVersionValue, setRenameVersionValue] = useState("");
 
@@ -1526,7 +1525,6 @@ function PrototypeCanvas({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug: prototype.slug, version }),
       });
-      setRestoreTarget(null);
       handleSetActiveVersion("live");
       setIframeKey((k) => k + 1);
     } catch {}
@@ -1731,36 +1729,6 @@ function PrototypeCanvas({
     </>
   );
 
-  const restoreModal = restoreTarget && (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setRestoreTarget(null)} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden">
-          <div className="px-5 pt-5 pb-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-50 mb-3">
-              <ClockCounterClockwise size={18} className="text-blue-500" />
-            </div>
-            <p className="font-semibold text-gray-900 text-sm mb-1">Restore {restoreTarget}?</p>
-            <p className="text-xs text-gray-500">This replaces the live version with {restoreTarget}. Consider saving a version first to preserve current work.</p>
-          </div>
-          <div className="px-5 pb-5 pt-2 flex gap-2">
-            <button
-              onClick={() => setRestoreTarget(null)}
-              className="flex-1 text-sm px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => handleRestoreVersion(restoreTarget)}
-              className="flex-1 text-sm px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
-            >
-              Restore
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
 
   const versionStrip = (
     <div className="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-white shrink-0">
@@ -1860,7 +1828,6 @@ function PrototypeCanvas({
         {iconModal}
         {deleteModal}
         {notesPanel}
-        {restoreModal}
       </div>
     );
   }
