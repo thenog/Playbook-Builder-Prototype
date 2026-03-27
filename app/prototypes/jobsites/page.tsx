@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 // Prototype: Jobsites
 // Type: mobile
 // This prototype renders inside a 375×812 phone frame.
@@ -33,7 +35,7 @@ const BORDER = "#E2E8F0";
 const ACTIVE_CHIP = "#CCF9E3";
 const FONT = "Sora, sans-serif";
 const SHADOW_HIGH = "0px 4px 12px rgba(0,0,0,0.15)";
-const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const SPRING = "cubic-bezier(0.16, 1, 0.3, 1)";
 
 type Screen = "map" | "form" | "pinpoint" | "empty-jobsite" | "role-select" | "add-company" | "filled-jobsite";
 type Status = "Active" | "Pending" | "Completed";
@@ -256,7 +258,7 @@ function MapScreen({ onAddLocation }: { onAddLocation: () => void }) {
         gap: 8, padding: "0 20px", boxShadow: SHADOW_HIGH, cursor: "pointer",
       }}>
         <Plus size={18} color="#fff" weight="bold" />
-        <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: "#fff" }}>Add location</span>
+        <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: "#fff" }}>Add jobsite</span>
       </button>
 
       {/* Home indicator */}
@@ -395,7 +397,7 @@ function PinpointScreen({ onConfirm, onBack }: { onConfirm: (offset: { x: number
     const dy = e.clientY - dragStart.current.my;
     // Clamp so map doesn't reveal edges too aggressively
     const clamp = (v: number, limit: number) => Math.max(-limit, Math.min(limit, v));
-    setMapOffset({ x: clamp(dragStart.current.ox + dx, 60), y: clamp(dragStart.current.oy + dy, 80) });
+    setMapOffset({ x: clamp(dragStart.current.ox + dx, 100), y: clamp(dragStart.current.oy + dy, 120) });
   }, []);
 
   const onPointerUp = useCallback(() => { dragStart.current = null; setDragging(false); }, []);
@@ -427,9 +429,9 @@ function PinpointScreen({ onConfirm, onBack }: { onConfirm: (offset: { x: number
           src="/jobsites-map.png"
           alt="Map"
           style={{
-            position: "absolute", inset: 0, width: "130%", height: "130%",
+            position: "absolute", inset: 0, width: "200%", height: "200%",
             objectFit: "cover", objectPosition: "center 40%",
-            transform: `translate(calc(-15% + ${mapOffset.x}px), calc(-10% + ${mapOffset.y}px))`,
+            transform: `translate(calc(-25% + ${mapOffset.x}px), calc(-18% + ${mapOffset.y}px))`,
             transition: dragging ? "none" : "transform 200ms ease-out",
             pointerEvents: "none",
           }}
@@ -520,8 +522,8 @@ function EmptyJobsiteScreen({ onAddCompany, jobsiteName, formData, mapOffset }: 
       {/* Map area */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: `calc(100% - ${sheetHeight}px)`, transition: `height 350ms ${SPRING}`, overflow: "hidden" }}>
         <img src="/jobsites-map.png" alt="Map" style={{
-          width: "130%", height: "130%", objectFit: "cover", objectPosition: "center 40%",
-          transform: `translate(calc(-15% + ${mapOffset.x}px), calc(-10% + ${mapOffset.y}px))`,
+          width: "200%", height: "200%", objectFit: "cover", objectPosition: "center 40%",
+          transform: `translate(calc(-25% + ${mapOffset.x}px), calc(-18% + ${mapOffset.y}px))`,
         }} />
         {MAP_PINS.slice(0, 5).map((pos, i) => <MapPinMarker key={i} style={{ top: pos.top, left: pos.left }} />)}
         {/* Confirmed pin */}
@@ -765,7 +767,7 @@ function FilledJobsiteScreen({ jobsiteName, formData, companies, mapOffset, onAd
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: SURFACE_0 }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "calc(100% - 470px)", overflow: "hidden" }}>
-        <img src="/jobsites-map.png" alt="Map" style={{ width: "130%", height: "130%", objectFit: "cover", objectPosition: "center 40%", transform: `translate(calc(-15% + ${mapOffset.x}px), calc(-10% + ${mapOffset.y}px))` }} />
+        <img src="/jobsites-map.png" alt="Map" style={{ width: "200%", height: "200%", objectFit: "cover", objectPosition: "center 40%", transform: `translate(calc(-25% + ${mapOffset.x}px), calc(-18% + ${mapOffset.y}px))` }} />
         {MAP_PINS.slice(0, 5).map((pos, i) => <MapPinMarker key={i} style={{ top: pos.top, left: pos.left }} />)}
         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-80%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ background: BLUE, borderRadius: 9999, padding: "5px 10px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0px 4px 12px rgba(5,100,255,0.4)" }}>
