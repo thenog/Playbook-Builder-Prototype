@@ -41,9 +41,9 @@ import {
   PencilSimple,
   Trash,
   DotsThree,
-  FloppyDisk,
   NotePencil,
   ClockCounterClockwise,
+  Plus,
 } from "@phosphor-icons/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1396,9 +1396,11 @@ function PrototypeCanvas({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Versions
-  const [versions, setVersions] = useState<{ label: string }[]>([]);
+  const [versions, setVersions] = useState<{ label: string; name: string }[]>([]);
   const [activeVersion, setActiveVersion] = useState<"live" | string>("live");
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+  const [renamingVersion, setRenamingVersion] = useState<string | null>(null);
+  const [renameVersionValue, setRenameVersionValue] = useState("");
 
   const handleOpenInCursor = async () => {
     setOpeningInCursor(true);
@@ -1467,8 +1469,22 @@ function PrototypeCanvas({
         body: JSON.stringify({ slug: prototype.slug }),
       });
       const data = await res.json();
-      if (data.label) setVersions((prev) => [...prev, { label: data.label }]);
+      if (data.label) setVersions((prev) => [...prev, { label: data.label, name: data.name ?? data.label }]);
     } catch {}
+  }, [prototype.slug]);
+
+  const handleRenameVersion = useCallback(async (label: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      await fetch("/api/prototypes/versions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: prototype.slug, version: label, name: trimmed }),
+      });
+      setVersions((prev) => prev.map((v) => v.label === label ? { ...v, name: trimmed } : v));
+    } catch {}
+    setRenamingVersion(null);
   }, [prototype.slug]);
 
   const handleRestoreVersion = useCallback(async (version: string) => {
@@ -1513,12 +1529,6 @@ function PrototypeCanvas({
             className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
           >
             <NotePencil size={13} /> Notes
-          </button>
-          <button
-            onClick={() => { setFabOpen(false); handleSaveVersion(); }}
-            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
-          >
-            <FloppyDisk size={13} /> Save Version
           </button>
           <button
             onClick={() => { setFabOpen(false); setSelectedIcon(() => prototype.Icon); setIconOpen(true); }}
@@ -1720,21 +1730,39 @@ function PrototypeCanvas({
     </>
   );
 
-  const versionStrip = versions.length > 0 && (
+  const versionStrip = (
     <div className="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-white shrink-0">
       <ClockCounterClockwise size={12} className="text-gray-400 shrink-0 mr-0.5" />
       {versions.map((v) => (
-        <button
-          key={v.label}
-          onClick={() => setActiveVersion(v.label)}
-          className={`text-xs px-2 py-0.5 rounded border font-mono transition-colors ${
-            activeVersion === v.label
-              ? "border-blue-500 bg-blue-50 text-blue-600 font-medium"
-              : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
-          }`}
-        >
-          {v.label}
-        </button>
+        <div key={v.label} className="relative">
+          {renamingVersion === v.label ? (
+            <input
+              autoFocus
+              value={renameVersionValue}
+              onChange={(e) => setRenameVersionValue(e.target.value)}
+              onBlur={() => handleRenameVersion(v.label, renameVersionValue || v.name)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameVersion(v.label, renameVersionValue || v.name);
+                if (e.key === "Escape") setRenamingVersion(null);
+              }}
+              className="text-xs px-2 py-0.5 rounded border border-blue-400 bg-blue-50 text-blue-700 font-medium outline-none w-24"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <button
+              onClick={() => setActiveVersion(v.label)}
+              onDoubleClick={() => { setRenamingVersion(v.label); setRenameVersionValue(v.name); }}
+              title="Double-click to rename"
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                activeVersion === v.label
+                  ? "border-blue-500 bg-blue-50 text-blue-600 font-medium"
+                  : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
+              }`}
+            >
+              {v.name}
+            </button>
+          )}
+        </div>
       ))}
       <button
         onClick={() => setActiveVersion("live")}
@@ -1749,11 +1777,18 @@ function PrototypeCanvas({
       {activeVersion !== "live" && (
         <button
           onClick={() => setRestoreTarget(activeVersion)}
-          className="ml-2 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+          className="ml-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
         >
           → restore to live
         </button>
       )}
+      <button
+        onClick={handleSaveVersion}
+        title="Save current as new version"
+        className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 border border-dashed border-gray-300 hover:border-gray-400 px-2 py-0.5 rounded transition-colors"
+      >
+        <Plus size={10} weight="bold" /> New version
+      </button>
     </div>
   );
 
