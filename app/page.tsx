@@ -1775,7 +1775,7 @@ export default function PlaybookBuilder() {
       const merged: Prototype[] = diskEntries.map((diskEntry) => {
         const existing = localBySlug.get(diskEntry.slug);
         if (existing) {
-          return { ...existing, filePath: diskEntry.filePath };
+          return { ...existing, type: diskEntry.type, filePath: diskEntry.filePath };
         }
         return {
           id: `prototype-disk-${diskEntry.slug}`,
