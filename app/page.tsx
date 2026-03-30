@@ -1402,6 +1402,7 @@ function PrototypeCanvas({
   const [activeVersion, setActiveVersion] = useState<"live" | string>("live");
   const [renamingVersion, setRenamingVersion] = useState<string | null>(null);
   const [renameVersionValue, setRenameVersionValue] = useState("");
+  const [deleteVersionConfirm, setDeleteVersionConfirm] = useState<string | null>(null);
 
   const handleOpenInCursor = async () => {
     setOpeningInCursor(true);
@@ -1699,6 +1700,37 @@ function PrototypeCanvas({
     </>
   );
 
+  const deleteVersionModal = deleteVersionConfirm && (
+    <>
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setDeleteVersionConfirm(null)} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden">
+          <div className="px-5 pt-5 pb-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-50 mb-3">
+              <Trash size={18} className="text-red-500" />
+            </div>
+            <p className="font-semibold text-gray-900 text-sm mb-1">Delete "{versions.find(v => v.label === deleteVersionConfirm)?.name ?? deleteVersionConfirm}"?</p>
+            <p className="text-xs text-gray-500">This version snapshot will be permanently deleted. This cannot be undone.</p>
+          </div>
+          <div className="px-5 pb-5 pt-2 flex gap-2">
+            <button
+              onClick={() => setDeleteVersionConfirm(null)}
+              className="flex-1 text-sm px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { handleDeleteVersion(deleteVersionConfirm); setDeleteVersionConfirm(null); }}
+              className="flex-1 text-sm px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   const notesPanel = notesOpen && (
     <>
       <div className="fixed inset-0 z-30" onClick={() => setNotesOpen(false)} />
@@ -1764,7 +1796,7 @@ function PrototypeCanvas({
           )}
           {renamingVersion !== v.label && (
             <button
-              onClick={(e) => { e.stopPropagation(); handleDeleteVersion(v.label); }}
+              onClick={(e) => { e.stopPropagation(); setDeleteVersionConfirm(v.label); }}
               title="Delete version"
               className="absolute top-0 right-0 bottom-0 flex items-center justify-center w-4 opacity-0 group-hover/chip:opacity-100 text-gray-300 hover:text-red-400 transition-all rounded-r"
             >
@@ -1827,6 +1859,7 @@ function PrototypeCanvas({
         {renameModal}
         {iconModal}
         {deleteModal}
+        {deleteVersionModal}
         {notesPanel}
       </div>
     );
@@ -1854,6 +1887,7 @@ function PrototypeCanvas({
       {renameModal}
       {iconModal}
       {deleteModal}
+      {deleteVersionModal}
       {notesPanel}
       {restoreModal}
     </div>
