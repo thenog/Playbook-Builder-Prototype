@@ -1889,7 +1889,6 @@ function PrototypeCanvas({
       {deleteModal}
       {deleteVersionModal}
       {notesPanel}
-      {restoreModal}
     </div>
   );
 }
