@@ -1267,6 +1267,325 @@ function ScanCardFlow({ step, onNext, onFinish, onClose }: {
   );
 }
 
+// ── Multi-card batch scan flow ─────────────────────────────────────────────────
+
+type MultiStep = "upload" | "detecting" | "confirm";
+
+const MULTI_CARDS = [
+  {
+    name: "Jack McNulty",       company: "Buffalo Copier & Imaging Solutions", phone: "(716) 713-2130", title: "Sales Rep",         address: "Buffalo, NY 14201",
+  },
+  {
+    name: "William H. Frankenstein", company: "Frankenstein & Associates, CPA", phone: "(716) 555-0182", title: "CPA",            address: "Williamsville, NY 14221",
+  },
+  {
+    name: "Rich Martin",        company: "CPU Technologies",                  phone: "(716) 555-0341", title: "Account Executive", address: "Cheektowaga, NY 14225",
+  },
+  {
+    name: "Edward J. Ryan",     company: "Ryan & Associates PC",              phone: "(716) 555-0294", title: "Attorney",          address: "Buffalo, NY 14202",
+  },
+  {
+    name: "Scott A. Murray",    company: "Murray Real Estate",                phone: "(716) 555-0118", title: "Realtor",           address: "Amherst, NY 14228",
+  },
+];
+
+function DetectingOverlay({ onDone }: { onDone: () => void }) {
+  const [revealed, setRevealed] = useState(0);
+
+  useEffect(() => {
+    const timers = MULTI_CARDS.map((_, i) =>
+      setTimeout(() => setRevealed(i + 1), 600 + i * 500)
+    );
+    const done = setTimeout(onDone, 600 + MULTI_CARDS.length * 500 + 800);
+    return () => { timers.forEach(clearTimeout); clearTimeout(done); };
+  }, [onDone]);
+
+  // Approximate bounding boxes for the 5 cards in the pile photo (as % of image)
+  const boxes = [
+    { top: "4%",  left: "38%", width: "38%", height: "18%", rotate: "4deg"  },
+    { top: "14%", left: "4%",  width: "38%", height: "18%", rotate: "-3deg" },
+    { top: "36%", left: "28%", width: "40%", height: "18%", rotate: "1deg"  },
+    { top: "56%", left: "8%",  width: "38%", height: "18%", rotate: "-2deg" },
+    { top: "68%", left: "42%", width: "40%", height: "18%", rotate: "3deg"  },
+  ];
+
+  return (
+    <div className="absolute inset-0 flex flex-col">
+      {/* Photo with detection overlays */}
+      <div className="flex-1 relative overflow-hidden">
+        <img src="/images/business-cards-pile.jpg" alt="Business cards" className="absolute inset-0 w-full h-full object-cover" />
+        {/* Subtle dark vignette */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.45) 100%)" }} />
+        {/* Detection boxes */}
+        {boxes.map((box, i) => (
+          <div
+            key={i}
+            className="absolute rounded-md pointer-events-none"
+            style={{
+              top: box.top, left: box.left, width: box.width, height: box.height,
+              transform: `rotate(${box.rotate})`,
+              border: "2px solid #4ade80",
+              boxShadow: "0 0 8px rgba(74,222,128,0.6)",
+              opacity: revealed > i ? 1 : 0,
+              transition: "opacity 0.3s ease",
+            }}
+          >
+            <div
+              className="absolute -top-5 left-0 flex items-center gap-1 px-1.5 py-0.5 rounded-sm"
+              style={{ backgroundColor: "#4ade80", opacity: revealed > i ? 1 : 0, transition: "opacity 0.3s ease 0.1s" }}
+            >
+              <span className="text-[9px] font-bold text-gray-900 leading-none">Card {i + 1}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Status bar */}
+      <div className="shrink-0 px-5 py-4" style={{ backgroundColor: "#020617" }}>
+        <div className="flex items-center gap-3 mb-3">
+          <Sparkle size={16} color="#60a5fa" weight="fill" style={{ animation: "dotBounce 1.5s ease-in-out infinite" }} />
+          <span className="text-[13px] text-white font-medium">
+            {revealed < MULTI_CARDS.length ? `Detecting cards… (${revealed} found)` : `${MULTI_CARDS.length} cards detected`}
+          </span>
+        </div>
+        <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.12)" }}>
+          <div
+            className="h-full rounded-full"
+            style={{
+              background: "linear-gradient(90deg, #0564FF, #4ade80)",
+              width: `${(revealed / MULTI_CARDS.length) * 100}%`,
+              transition: "width 0.4s ease",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MultiCardConfirm({ onFinish, onClose }: { onFinish: () => void; onClose: () => void }) {
+  const [cardIdx, setCardIdx] = useState(0);
+  const [confirmed, setConfirmed] = useState<boolean[]>(Array(MULTI_CARDS.length).fill(false));
+  const [direction, setDirection] = useState<"forward" | "back">("forward");
+  const done = cardIdx >= MULTI_CARDS.length;
+  const card = MULTI_CARDS[cardIdx];
+
+  function advance(accept: boolean) {
+    setDirection("forward");
+    setConfirmed((prev) => { const n = [...prev]; n[cardIdx] = accept; return n; });
+    setTimeout(() => setCardIdx((i) => i + 1), 0);
+  }
+
+  function goBack() {
+    if (cardIdx === 0) return;
+    setDirection("back");
+    setTimeout(() => setCardIdx((i) => i - 1), 0);
+  }
+
+  const savedCount = confirmed.filter(Boolean).length + (done ? 0 : 0);
+  const finalSaved = confirmed.filter(Boolean).length;
+
+  if (done) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-5" style={{ animation: "fadeInUp 0.35s ease both" }}>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#d1fae5" }}>
+          <CheckCircle size={36} color="#16a34a" weight="fill" />
+        </div>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <p className="text-[18px] font-bold text-gray-900">{finalSaved} contact{finalSaved !== 1 ? "s" : ""} saved</p>
+          <p className="text-[13px] text-gray-500">
+            {finalSaved} of {MULTI_CARDS.length} cards imported to your accounts
+          </p>
+        </div>
+        <div className="w-full flex flex-col gap-2">
+          {MULTI_CARDS.map((c, i) => (
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border" style={{ borderColor: "#E2E8F0", animation: `fadeInScale 0.3s ease both`, animationDelay: `${i * 0.06}s`, opacity: 0 }}>
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: confirmed[i] ? "#d1fae5" : "#f3f4f6" }}>
+                {confirmed[i]
+                  ? <CheckCircle size={14} color="#16a34a" weight="fill" />
+                  : <XCircle size={14} color="#9ca3af" weight="fill" />}
+              </div>
+              <span className="text-[12px] text-gray-700 flex-1 truncate">{c.name}</span>
+              <span className="text-[11px] text-gray-400 truncate">{c.company}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={onFinish}
+          className="w-full h-12 rounded-full flex items-center justify-center mt-2"
+          style={{ backgroundColor: "#0564FF" }}
+        >
+          <span className="text-white text-[15px] font-medium">Done</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Progress stepper */}
+      <div className="shrink-0 px-5 pt-4 pb-3">
+        <div className="flex items-center gap-1.5">
+          {MULTI_CARDS.map((_, i) => (
+            <div
+              key={i}
+              className="h-1 rounded-full flex-1 transition-all duration-300"
+              style={{
+                backgroundColor: i < cardIdx ? "#16a34a" : i === cardIdx ? "#0564FF" : "#E2E8F0",
+              }}
+            />
+          ))}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-1.5">Card {cardIdx + 1} of {MULTI_CARDS.length}</p>
+      </div>
+
+      {/* Card detail */}
+      <div
+        key={cardIdx}
+        className="flex-1 overflow-y-auto px-5 pb-4 flex flex-col gap-4"
+        style={{ animation: `${direction === "forward" ? "fadeInUp" : "fadeInDown"} 0.28s ease both` }}
+      >
+        {/* Thumbnail */}
+        <div className="rounded-xl overflow-hidden shrink-0 relative" style={{ height: 130 }}>
+          <img src="/images/business-cards-pile.jpg" alt="Card" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: "center 20%" }} />
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.22)" }} />
+          <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md" style={{ backgroundColor: "#4ade80" }}>
+            <span className="text-[10px] font-bold text-gray-900">Card {cardIdx + 1}</span>
+          </div>
+        </div>
+
+        {/* Extracted fields */}
+        <div className="flex flex-col gap-2">
+          {[
+            { label: "Name",    value: card.name },
+            { label: "Title",   value: card.title },
+            { label: "Company", value: card.company },
+            { label: "Phone",   value: card.phone },
+            { label: "Address", value: card.address },
+          ].map(({ label, value }, i) => (
+            <div
+              key={label}
+              className="flex items-center h-12 px-3 rounded-lg border"
+              style={{ borderColor: "#E2E8F0", animation: "fadeInUp 0.3s ease both", animationDelay: `${0.05 + i * 0.05}s`, opacity: 0 }}
+            >
+              <span className="text-[10px] text-gray-400 w-16 shrink-0">{label}</span>
+              <span className="text-[13px] text-gray-800 font-medium">{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Action row */}
+      <div className="shrink-0 px-5 py-4 border-t border-gray-100 flex items-center gap-3">
+        {cardIdx > 0 && (
+          <button
+            onClick={goBack}
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: "#F1F5F9" }}
+          >
+            <CaretLeft size={18} className="text-gray-600" weight="bold" />
+          </button>
+        )}
+        <button
+          onClick={() => advance(false)}
+          className="flex-1 h-12 rounded-full flex items-center justify-center border"
+          style={{ borderColor: "#E2E8F0" }}
+        >
+          <span className="text-[14px] font-medium text-gray-600">Skip</span>
+        </button>
+        <button
+          onClick={() => advance(true)}
+          className="flex-1 h-12 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: "#0564FF" }}
+        >
+          <span className="text-[14px] font-medium text-white">Save contact</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MultiBatchFlow({ onFinish, onClose }: { onFinish: () => void; onClose: () => void }) {
+  const [step, setStep] = useState<MultiStep>("upload");
+
+  return (
+    <div className="absolute inset-0 z-50 flex flex-col" style={{ backgroundColor: step === "detecting" ? "#020617" : "transparent" }}>
+      {step === "upload" && (
+        <div className="absolute inset-0 z-50 flex flex-col">
+          <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-white flex flex-col"
+            style={{ animation: "slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both", maxHeight: "72%" }}
+          >
+            <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-0 shrink-0" style={{ backgroundColor: "#E2E8F0" }} />
+            <div className="flex items-center px-4 pt-4 pb-2 shrink-0">
+              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center">
+                <XCircle size={22} className="text-gray-400" />
+              </button>
+              <p className="flex-1 text-center text-[13px] font-medium text-gray-900 -ml-8">Scan multiple cards</p>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 pb-4 flex flex-col gap-5 pt-3">
+              {/* Upload zone */}
+              <button
+                className="w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 py-10"
+                style={{ borderColor: "#CBD5E1" }}
+                onClick={() => setStep("detecting")}
+              >
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: "#EEF4FF" }}>
+                  <IdentificationCard size={24} style={{ color: "#0564FF" }} weight="fill" />
+                </div>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <span className="text-[14px] font-semibold text-gray-800">Upload photo</span>
+                  <span className="text-[12px] text-gray-400">Tap to select a photo with multiple cards</span>
+                </div>
+              </button>
+              {/* Preview of what the AI will do */}
+              <div className="rounded-xl overflow-hidden" style={{ height: 120 }}>
+                <img src="/images/business-cards-pile.jpg" alt="Example" className="w-full h-full object-cover" style={{ opacity: 0.5 }} />
+              </div>
+              <p className="text-[11px] text-gray-400 text-center -mt-3">AI will detect and extract each card automatically</p>
+            </div>
+            <div className="shrink-0 px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setStep("detecting")}
+                className="w-full h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "#0564FF" }}
+              >
+                <span className="text-white text-[15px] font-medium">Use sample photo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === "detecting" && (
+        <DetectingOverlay onDone={() => setStep("confirm")} />
+      )}
+
+      {step === "confirm" && (
+        <div className="absolute inset-0 z-50 flex flex-col">
+          <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-white flex flex-col"
+            style={{ animation: "slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both", maxHeight: "92%", minHeight: "80%" }}
+          >
+            <div className="w-10 h-1 rounded-full mx-auto mt-3 shrink-0" style={{ backgroundColor: "#E2E8F0" }} />
+            <div className="flex items-center px-4 pt-3 pb-1 shrink-0">
+              <div className="w-8" />
+              <div className="flex-1 flex flex-col items-center">
+                <p className="text-[13px] font-medium text-gray-900">Review extracted cards</p>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center">
+                <XCircle size={22} className="text-gray-400" />
+              </button>
+            </div>
+            <MultiCardConfirm onFinish={onFinish} onClose={onClose} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Plus menu sheet ─────────────────────────────────────────────────────────────
 
 const PLUS_MENU_ITEMS = [
@@ -1277,7 +1596,14 @@ const PLUS_MENU_ITEMS = [
   { label: "Scan Business Card", Icon: IdentificationCard },
 ];
 
-function PlusMenuSheet({ open, onClose, onScanCard }: { open: boolean; onClose: () => void; onScanCard: () => void }) {
+function PlusMenuSheet({ open, onClose, onScanCard, onScanMulti }: { open: boolean; onClose: () => void; onScanCard: () => void; onScanMulti: () => void }) {
+  const [showScanPicker, setShowScanPicker] = useState(false);
+
+  function handleClose() {
+    setShowScanPicker(false);
+    onClose();
+  }
+
   return (
     <div
       className="absolute inset-0 z-40"
@@ -1287,7 +1613,7 @@ function PlusMenuSheet({ open, onClose, onScanCard }: { open: boolean; onClose: 
       <div
         className="absolute inset-0 transition-opacity duration-300"
         style={{ backgroundColor: "rgba(0,0,0,0.4)", opacity: open ? 1 : 0 }}
-        onClick={onClose}
+        onClick={handleClose}
       />
       {/* Sheet */}
       <div
@@ -1296,22 +1622,68 @@ function PlusMenuSheet({ open, onClose, onScanCard }: { open: boolean; onClose: 
       >
         {/* Grab bar */}
         <div className="w-10 h-1 rounded-full mx-auto mt-3" style={{ backgroundColor: "#E2E8F0" }} />
-        {/* Header */}
-        <div className="flex items-center px-6 pt-5 pb-2">
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center">
-            <XCircle size={22} className="text-gray-400" />
-          </button>
-          <span className="flex-1 text-center text-[13px] font-medium text-gray-900 -ml-8">Main actions</span>
-        </div>
-        {/* Items */}
-        <div className="px-6 pt-6 pb-24 flex flex-col gap-8">
-          {PLUS_MENU_ITEMS.map(({ label, Icon }) => (
-            <button key={label} className="flex items-center gap-3" onClick={label === "Scan Business Card" ? onScanCard : undefined}>
-              <Icon size={26} className="text-gray-900 shrink-0" />
-              <span className="text-[15px] text-gray-900">{label}</span>
-            </button>
-          ))}
-        </div>
+
+        {!showScanPicker ? (
+          <>
+            {/* Header */}
+            <div className="flex items-center px-6 pt-5 pb-2">
+              <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center">
+                <XCircle size={22} className="text-gray-400" />
+              </button>
+              <span className="flex-1 text-center text-[13px] font-medium text-gray-900 -ml-8">Main actions</span>
+            </div>
+            {/* Items */}
+            <div className="px-6 pt-6 pb-24 flex flex-col gap-8">
+              {PLUS_MENU_ITEMS.map(({ label, Icon }) => (
+                <button key={label} className="flex items-center gap-3" onClick={label === "Scan Business Card" ? () => setShowScanPicker(true) : undefined}>
+                  <Icon size={26} className="text-gray-900 shrink-0" />
+                  <span className="text-[15px] text-gray-900">{label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-center px-6 pt-5 pb-2">
+              <button onClick={() => setShowScanPicker(false)} className="w-8 h-8 flex items-center justify-center">
+                <CaretLeft size={20} className="text-gray-500" weight="bold" />
+              </button>
+              <span className="flex-1 text-center text-[13px] font-medium text-gray-900 -ml-8">Scan business card</span>
+            </div>
+            {/* Mode options */}
+            <div className="px-5 pt-4 pb-10 flex flex-col gap-3" style={{ animation: "fadeInUp 0.22s ease both" }}>
+              <button
+                className="flex items-center gap-4 p-4 rounded-2xl border text-left"
+                style={{ borderColor: "#E2E8F0" }}
+                onClick={onScanCard}
+              >
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "#EEF4FF" }}>
+                  <IdentificationCard size={22} style={{ color: "#0564FF" }} weight="fill" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[14px] font-semibold text-gray-900">Single card</span>
+                  <span className="text-[12px] text-gray-500">Scan and import one business card</span>
+                </div>
+                <CaretRight size={16} className="text-gray-300 ml-auto shrink-0" />
+              </button>
+              <button
+                className="flex items-center gap-4 p-4 rounded-2xl border text-left"
+                style={{ borderColor: "#E2E8F0" }}
+                onClick={() => { setShowScanPicker(false); onClose(); onScanMulti(); }}
+              >
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "#F0FDF4" }}>
+                  <IdentificationCard size={22} style={{ color: "#16a34a" }} weight="fill" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[14px] font-semibold text-gray-900">Multiple cards</span>
+                  <span className="text-[12px] text-gray-500">Upload a photo with several cards</span>
+                </div>
+                <CaretRight size={16} className="text-gray-300 ml-auto shrink-0" />
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1324,6 +1696,7 @@ export default function Future() {
   const [selectedCompany, setSelectedCompany] = useState<string>("");
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [scanStep, setScanStep] = useState<ScanStep | null>(null);
+  const [showMultiScan, setShowMultiScan] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   function handleSelectCompany(name: string) {
@@ -1395,6 +1768,10 @@ export default function Future() {
           from { opacity: 0; transform: translateY(14px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes fadeInDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
 
       {view === "home" && (
@@ -1416,6 +1793,7 @@ export default function Future() {
         open={showPlusMenu}
         onClose={() => setShowPlusMenu(false)}
         onScanCard={() => { setShowPlusMenu(false); setScanStep("camera"); }}
+        onScanMulti={() => { setShowMultiScan(true); }}
       />
 
       {scanStep && (
@@ -1424,6 +1802,13 @@ export default function Future() {
           onNext={setScanStep}
           onFinish={handleScanFinish}
           onClose={() => setScanStep(null)}
+        />
+      )}
+
+      {showMultiScan && (
+        <MultiBatchFlow
+          onFinish={() => { setShowMultiScan(false); setShowSuccessToast(true); setTimeout(() => setShowSuccessToast(false), 3000); }}
+          onClose={() => setShowMultiScan(false)}
         />
       )}
 
