@@ -1,6 +1,6 @@
 "use client";
 
-// Prototype: Future
+// Prototype: AI Features
 // Type: mobile
 // Status: in-progress
 // Created: 2026-04-09
@@ -399,7 +399,7 @@ function ActivityTabContent() {
 
 // ── Company profile screen ─────────────────────────────────────────────────────
 
-function CompanyProfileScreen({ company, onBack }: { company: string; onBack: () => void }) {
+function CompanyProfileScreen({ company, address, onBack }: { company: string; address?: { street: string; city: string }; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<Tab>("activity");
   const [briefKey, setBriefKey] = useState(0);
 
@@ -445,8 +445,8 @@ function CompanyProfileScreen({ company, onBack }: { company: string; onBack: ()
           </div>
           <div className="bg-gray-50 rounded-xl p-3.5 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-800">133 N 17th Street</p>
-              <p className="text-sm font-medium text-gray-800">San Diego, CA 32716</p>
+              <p className="text-sm font-medium text-gray-800">{address?.street ?? "133 N 17th Street"}</p>
+              <p className="text-sm font-medium text-gray-800">{address?.city ?? "San Diego, CA 32716"}</p>
             </div>
             <button>
               <ArrowSquareOut size={17} className="text-gray-400" />
@@ -682,14 +682,14 @@ function MapPin2({ x, y }: { x: number; y: number }) {
 }
 
 const AI_STOPS = [
-  { name: "Northgate Industrial Supply", address: "1240 Commerce Dr", tag: "High intent", tagColor: "#0564FF", score: "98% match" },
-  { name: "Apex Mechanical Services", address: "877 Lakeview Blvd", tag: "New in area", tagColor: "#16A34A", score: "91% match" },
-  { name: "Summit Building Group", address: "3310 W Grand Ave", tag: "Past customer", tagColor: "#7C3AED", score: "88% match" },
-  { name: "Redwood Contractors LLC", address: "502 Birch St", tag: "High intent", tagColor: "#0564FF", score: "84% match" },
-  { name: "Lakeside Property Mgmt", address: "19 Harbor Cir", tag: "Competitor user", tagColor: "#D97706", score: "79% match" },
+  { name: "Northgate Industrial Supply", address: "1240 Commerce Dr", city: "Salt Lake City, UT 84116", tag: "High intent", tagColor: "#0564FF", score: "98% match" },
+  { name: "Apex Mechanical Services", address: "877 Lakeview Blvd", city: "West Valley City, UT 84119", tag: "New in area", tagColor: "#16A34A", score: "91% match" },
+  { name: "Summit Building Group", address: "3310 W Grand Ave", city: "Ogden, UT 84401", tag: "Past customer", tagColor: "#7C3AED", score: "88% match" },
+  { name: "Redwood Contractors LLC", address: "502 Birch St", city: "Provo, UT 84601", tag: "High intent", tagColor: "#0564FF", score: "84% match" },
+  { name: "Lakeside Property Mgmt", address: "19 Harbor Cir", city: "North Salt Lake, UT 84054", tag: "Competitor user", tagColor: "#D97706", score: "79% match" },
 ];
 
-function AiStopsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AiStopsSheet({ open, onClose, onSelectStop }: { open: boolean; onClose: () => void; onSelectStop: (stop: typeof AI_STOPS[number]) => void }) {
   const [openKey, setOpenKey] = useState(0);
   const prevOpen = useRef(false);
   useEffect(() => {
@@ -721,15 +721,16 @@ function AiStopsSheet({ open, onClose }: { open: boolean; onClose: () => void })
         {/* Cards */}
         <div key={openKey} className="overflow-y-auto px-4 pb-6 flex flex-col gap-3">
           {AI_STOPS.map((stop, i) => (
-            <div
+            <button
               key={i}
-              className="rounded-xl border p-4 flex items-center gap-3"
+              className="rounded-xl border p-4 flex items-center gap-3 w-full text-left"
               style={{
                 borderColor: "#E2E8F0",
                 animation: open ? `stopCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both` : undefined,
                 animationDelay: open ? `${0.08 + i * 0.07}s` : undefined,
                 opacity: open ? undefined : 0,
               }}
+              onClick={() => onSelectStop(stop)}
             >
               <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "#EEF4FF" }}>
                 <Buildings size={18} style={{ color: "#0564FF" }} weight="fill" />
@@ -745,7 +746,7 @@ function AiStopsSheet({ open, onClose }: { open: boolean; onClose: () => void })
               <button className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "#F1F5F9" }}>
                 <MapPin size={14} className="text-gray-500" />
               </button>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -756,6 +757,7 @@ function AiStopsSheet({ open, onClose }: { open: boolean; onClose: () => void })
 function MapScreen({ onBack }: { onBack: () => void }) {
   const [offset, setOffset] = useState({ x: -30, y: -60 });
   const [showAiSheet, setShowAiSheet] = useState(false);
+  const [selectedStop, setSelectedStop] = useState<typeof AI_STOPS[number] | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
   function handlePointerDown(e: React.PointerEvent) {
@@ -872,7 +874,21 @@ function MapScreen({ onBack }: { onBack: () => void }) {
         <div className="w-[109px] h-1 rounded-full mx-auto mt-4" style={{ backgroundColor: HOME_NAVY }} />
       </div>
 
-      <AiStopsSheet open={showAiSheet} onClose={() => setShowAiSheet(false)} />
+      <AiStopsSheet
+        open={showAiSheet}
+        onClose={() => setShowAiSheet(false)}
+        onSelectStop={(stop) => { setShowAiSheet(false); setSelectedStop(stop); }}
+      />
+
+      {selectedStop && (
+        <div className="absolute inset-0 z-50">
+          <CompanyProfileScreen
+            company={selectedStop.name}
+            address={{ street: selectedStop.address, city: selectedStop.city }}
+            onBack={() => setSelectedStop(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }
